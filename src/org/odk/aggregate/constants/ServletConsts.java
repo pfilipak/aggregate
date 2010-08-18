@@ -217,18 +217,18 @@ public class ServletConsts {
   public static final String ONE_TIME_DATA_TRANSFER_BUTTON_TXT = "Create Worksheet with 'ONE TIME' Data Transfer";
 
 
-  public static final String SPREADSHEET_SCOPE = "http://spreadsheets.google.com/feeds/";
+  public static final String SPREADSHEET_SCOPE = "https://spreadsheets.google.com/feeds/";
 
 
   public static final String WORKSHEETS_FEED_PREFIX = SPREADSHEET_SCOPE + "worksheets/";
   
-  public static final String FEED_PERMISSIONS = "/private/full";
+  public static final String FEED_PERMISSIONS = "/private/full/";
 
 
   public static final String DOCS_SCOPE = "http://docs.google.com/feeds/";
   
   
-  public static final String DOC_FEED = DOCS_SCOPE + "documents" + FEED_PERMISSIONS;
+  public static final String DOC_FEED = DOCS_SCOPE + "default" + FEED_PERMISSIONS;
 
 
   public static final String DOCS_PRE_KEY = "spreadsheet%3A";

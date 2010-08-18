@@ -311,7 +311,8 @@ public class ServletUtilBase extends HttpServlet {
   protected String verifyGDataAuthorization(HttpServletRequest req, HttpServletResponse resp,
       String scope) throws IOException, ODKGDataAuthenticationError,
       ODKGDataServiceNotAuthenticated {
-    String onetimeUseToken = AuthSubUtil.getTokenFromReply(req.getQueryString());
+    String query = URLDecoder.decode(req.getQueryString(), "UTF-8");
+    String onetimeUseToken = AuthSubUtil.getTokenFromReply(query);
 
     String sessionToken = null;
 
