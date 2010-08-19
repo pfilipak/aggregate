@@ -18,6 +18,9 @@ package org.odk.aggregate.servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.List;
+import java.util.logging.Logger;
 
 import javax.persistence.EntityManager;
 import javax.servlet.http.HttpServletRequest;
@@ -38,9 +41,6 @@ import org.odk.aggregate.table.ResultTable;
 import com.google.appengine.api.datastore.Key;
 import com.google.appengine.api.datastore.KeyFactory;
 import com.google.apphosting.api.DeadlineExceededException;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Servlet to generate a CSV file for download, in parts!
