@@ -19,13 +19,11 @@ package org.opendatakit.aggregate.submission.type;
 
 import java.math.BigDecimal;
 
-import org.opendatakit.aggregate.datamodel.FormDataModel;
+import org.opendatakit.aggregate.datamodel.FormElementModel;
+import org.opendatakit.aggregate.format.Row;
 import org.opendatakit.aggregate.format.element.ElementFormatter;
-import org.opendatakit.aggregate.format.element.Row;
-import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
-import org.opendatakit.common.persistence.EntityKey;
-import org.opendatakit.common.persistence.InstanceDataBase;
+import org.opendatakit.common.persistence.DynamicCommonFieldsBase;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.security.User;
 
@@ -33,6 +31,7 @@ import org.opendatakit.common.security.User;
  * Data Storage Converter for Decimal Type
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
 public class DecimalSubmissionType extends
@@ -43,8 +42,8 @@ public class DecimalSubmissionType extends
 	 * @param propertyName
 	 *            Name of submission element
 	 */
-	public DecimalSubmissionType(InstanceDataBase backingObject,
-			FormDataModel element) {
+	public DecimalSubmissionType(DynamicCommonFieldsBase backingObject,
+			FormElementModel element) {
 		super(backingObject, element);
 	}
 
@@ -63,17 +62,9 @@ public class DecimalSubmissionType extends
 		}
 	}
 
-	/**
-	 * Get submission field value from database entity
-	 * 
-	 * @param dbEntity
-	 *            entity to obtain value
-	 */
 	@Override
-	public void getValueFromEntity(CommonFieldsBase dbEntity,
-			String uriAssociatedRow, EntityKey topLevelTableKey,
-			Datastore datastore, User user, boolean fetchElement) {
-		BigDecimal value = dbEntity.getNumericField(element.getBackingKey());
+	public void getValueFromEntity(Datastore datastore, User user) {
+		BigDecimal value = backingObject.getNumericField(element.getFormDataModel().getBackingKey());
 		setValue(value);
 	}
 
@@ -85,9 +76,9 @@ public class DecimalSubmissionType extends
 	 *            proper format for output
 	 */
 	@Override
-	public void formatValue(ElementFormatter elemFormatter, Row row)
+	public void formatValue(ElementFormatter elemFormatter, Row row, String ordinalValue)
 			throws ODKDatastoreException {
-		elemFormatter.formatDecimal(getValue(), element.getElementName(), row);
+		elemFormatter.formatDecimal(getValue(), element.getGroupQualifiedElementName() + ordinalValue, row);
 	}
 
 	/**
@@ -106,7 +97,7 @@ public class DecimalSubmissionType extends
 
 	@Override
 	public BigDecimal getValue() {
-		return backingObject.getNumericField(element.getBackingKey());
+		return backingObject.getNumericField(element.getFormDataModel().getBackingKey());
 	}
 
 	/**
@@ -116,7 +107,7 @@ public class DecimalSubmissionType extends
 	 *            value to set
 	 */
 	protected void setValue(BigDecimal value) {
-		backingObject.setNumericField(element.getBackingKey(),
+		backingObject.setNumericField(element.getFormDataModel().getBackingKey(),
 				(BigDecimal) value);
 	}
 }

@@ -25,13 +25,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.opendatakit.aggregate.ContextFactory;
+import org.opendatakit.aggregate.constants.BeanDefs;
 import org.opendatakit.aggregate.constants.ErrorConsts;
 import org.opendatakit.aggregate.constants.ServletConsts;
 import org.opendatakit.aggregate.exception.ODKFormNotFoundException;
 import org.opendatakit.aggregate.submission.Submission;
+import org.opendatakit.aggregate.submission.SubmissionElement;
 import org.opendatakit.aggregate.submission.SubmissionKey;
 import org.opendatakit.aggregate.submission.SubmissionKeyPart;
-import org.opendatakit.aggregate.submission.SubmissionValue;
 import org.opendatakit.aggregate.submission.type.BlobSubmissionType;
 import org.opendatakit.common.constants.HtmlConsts;
 import org.opendatakit.common.persistence.Datastore;
@@ -43,6 +44,7 @@ import org.opendatakit.common.security.UserService;
  * Servlet to display the binary data from a submission
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
 public class BinaryDataServlet extends ServletUtilBase {
@@ -73,28 +75,30 @@ public class BinaryDataServlet extends ServletUtilBase {
     // return;
     // }
       UserService userService = (UserService) ContextFactory.get().getBean(
-              ServletConsts.USER_BEAN);
+              BeanDefs.USER_BEAN);
       User user = userService.getCurrentUser();
 	
     // verify parameters are present
     String keyString = getParameter(req, ServletConsts.BLOB_KEY);
+    String downloadAsAttachmentString = getParameter(req, ServletConsts.AS_ATTACHMENT);
+    
     if (keyString == null) {
       sendErrorNotEnoughParams(resp);
       return;
     }
     SubmissionKey key = new SubmissionKey(keyString);
 
-    Datastore ds = (Datastore) ContextFactory.get().getBean(ServletConsts.DATASTORE_BEAN);
+    Datastore ds = (Datastore) ContextFactory.get().getBean(BeanDefs.DATASTORE_BEAN);
 
     byte[] imageBlob = null;
     String unrootedFileName = null;
     String contentType = null;
     Long contentLength = null;
     
-    List<SubmissionKeyPart> parts = SubmissionKeyPart.splitSubmissionKey(key);
+    List<SubmissionKeyPart> parts = key.splitSubmissionKey();
     Submission sub = null;
 	try {
-		sub = Submission.fetchSubmission(parts, ds, user, userService.getCurrentRealm());
+		sub = Submission.fetchSubmission(parts, ds, user);
 	} catch (ODKFormNotFoundException e1) {
 		odkIdNotFoundError(resp);
 		return;
@@ -104,8 +108,9 @@ public class BinaryDataServlet extends ServletUtilBase {
 						"Unable to retrieve attachment");
 		return;
 	}
+	
     if ( sub != null ) {
-    	SubmissionValue v = sub.resolveSubmissionKey(parts);
+    	SubmissionElement v = sub.resolveSubmissionKey(parts);
     	BlobSubmissionType b = (BlobSubmissionType) v;
     	if ( b.getAttachmentCount() == 1 ) {
     		String version = b.getCurrentVersion(1);
@@ -120,6 +125,25 @@ public class BinaryDataServlet extends ServletUtilBase {
 								"Unable to retrieve attachment");
 				return;
 			}
+    	} else {
+    		SubmissionKeyPart p = parts.get(parts.size()-1);
+    		String version = p.getVersion();
+    		Long ordinal = p.getOrdinalNumber();
+    		if ((version == null) || (ordinal == null)) {
+    			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, 
+    					"attachment request must be fully qualified");
+    		} else {
+	    		try {
+	    			imageBlob = b.getBlob(ordinal.intValue(), version);
+	    			unrootedFileName = b.getUnrootedFilename(ordinal.intValue());
+	    			contentType = b.getContentType(ordinal.intValue(), version);
+	    			contentLength = b.getContentLength(ordinal.intValue(), version);
+	    		} catch (ODKDatastoreException e) {
+	    			e.printStackTrace();
+	    			resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+	    							"Unable to retrieve attachment");
+	    		}
+    		}
     	}
     }
     
@@ -132,11 +156,15 @@ public class BinaryDataServlet extends ServletUtilBase {
     	if ( contentLength != null ) {
     		resp.setContentLength(contentLength.intValue());
     	}
-    	// set filename if we are downloading to disk...
-    	// need this for manifest fetch logic...
-//    	if ( unrootedFileName != null ) {
-//    		resp.addHeader("Content-Disposition:", "attachment; filename=\""+unrootedFileName+"\"");
-//    	}
+    	
+    	if ( downloadAsAttachmentString != null && ! "".equals(downloadAsAttachmentString) ) {
+    		// set filename if we are downloading to disk...
+    		// need this for manifest fetch logic...
+	    	if ( unrootedFileName != null ) {
+	    		resp.addHeader("Content-Disposition:", "attachment; filename=\""+unrootedFileName+"\"");
+	    	}
+    	}
+    	
         OutputStream os = resp.getOutputStream();
         os.write(imageBlob);
         os.close();

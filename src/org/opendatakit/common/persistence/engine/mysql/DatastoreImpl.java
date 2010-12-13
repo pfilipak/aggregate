@@ -21,16 +21,23 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.sql.DataSource;
 
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.DataField;
 import org.opendatakit.common.persistence.Datastore;
+import org.opendatakit.common.persistence.DynamicAssociationBase;
+import org.opendatakit.common.persistence.DynamicBase;
+import org.opendatakit.common.persistence.DynamicDocumentBase;
 import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.PersistConsts;
 import org.opendatakit.common.persistence.Query;
+import org.opendatakit.common.persistence.StaticAssociationBase;
+import org.opendatakit.common.persistence.TaskLock;
 import org.opendatakit.common.persistence.Query.FilterOperation;
+import org.opendatakit.common.persistence.engine.pgres.TaskLockImpl;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.persistence.exception.ODKEntityNotFoundException;
 import org.opendatakit.common.persistence.exception.ODKEntityPersistException;
@@ -41,6 +48,12 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
+/**
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
+ */
 public class DatastoreImpl implements Datastore {
 
 	/**
@@ -57,16 +70,16 @@ public class DatastoreImpl implements Datastore {
 	private static final int MAX_COLUMN_NAME_LEN = 64;
 	private static final int MAX_TABLE_NAME_LEN = 64;
 
-	private final JdbcTemplate jdbcTemplate;
+	private final DataSource dataSource;
 
 	private final String schemaName;
 
 	public DatastoreImpl() throws ODKDatastoreException {
 		ApplicationContext context = new ClassPathXmlApplicationContext(
 				PERSISTENCE_CONTEXT);
-		DataSource dataSource = (DataSource) context.getBean(DATASOURCE_NAME);
+		dataSource = (DataSource) context.getBean(DATASOURCE_NAME);
 
-		this.jdbcTemplate = new JdbcTemplate(dataSource);
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		List<?> databaseNames = jdbcTemplate.queryForList("SELECT DATABASE()",
 				String.class);
 		this.schemaName = (String) databaseNames.get(0);
@@ -81,6 +94,7 @@ public class DatastoreImpl implements Datastore {
 	public static final String K_SELECT_DISTINCT = "SELECT DISTINCT ";
 	public static final String K_CS = ", ";
 	public static final String K_BQ = "`";
+	public static final String K_COMMA = ", ";
 	public static final String K_FROM = " FROM ";
 	public static final String K_WHERE = " WHERE ";
 	public static final String K_AND = " AND ";
@@ -94,8 +108,8 @@ public class DatastoreImpl implements Datastore {
 	public static final String K_DELETE_FROM = "DELETE FROM ";
 
 	public static final Long DEFAULT_MAX_STRING_SIZE = 255L;
-	public static final Integer DEFAULT_DBL_NUMERIC_SCALE = 6;
-	public static final Integer DEFAULT_DBL_NUMERIC_PRECISION = 9;
+	public static final Integer DEFAULT_DBL_NUMERIC_SCALE = 10;
+	public static final Integer DEFAULT_DBL_NUMERIC_PRECISION = 38;
 	public static final Integer DEFAULT_INT_NUMERIC_PRECISION = 10;
 	
 	private static final class TableDefinition {
@@ -137,19 +151,25 @@ public class DatastoreImpl implements Datastore {
 		public static final String DATA_TYPE = "isc.DATA_TYPE";
 		public static final String IS_NULLABLE = "isc.IS_NULLABLE";
 		public static final String INFORMATION_SCHEMA_COLUMNS = "information_schema.COLUMNS isc";
+		public static final String IST_TABLE_NAME = "ist.TABLE_NAME";
+		public static final String IST_TABLE_SCHEMA = "ist.TABLE_SCHEMA";
+		public static final String INFORMATION_SCHEMA_TABLES = "information_schema.TABLES ist";
 		public static final String K_COUNT_ONE = "COUNT(1)";
 		
 		public static final String TABLE_DEF_QUERY = K_SELECT +
 					COLUMN_NAME + K_CS + IS_NULLABLE + K_CS + 
 					CHARACTER_MAXIMUM_LENGTH + K_CS + NUMERIC_PRECISION + K_CS +
 					NUMERIC_SCALE + K_CS + DATA_TYPE + K_FROM + INFORMATION_SCHEMA_COLUMNS +
+					K_COMMA + INFORMATION_SCHEMA_TABLES +
 					K_WHERE + TABLE_SCHEMA + K_EQ + K_BIND_VALUE + 
-					K_AND + TABLE_NAME + K_EQ + K_BIND_VALUE;
+					K_AND + TABLE_NAME + K_EQ + K_BIND_VALUE +
+					K_AND + IST_TABLE_NAME + K_EQ + TABLE_NAME +
+					K_AND + IST_TABLE_SCHEMA + K_EQ + TABLE_SCHEMA;
 		
 		public static final String TABLE_EXISTS_QUERY = K_SELECT +
-					K_COUNT_ONE + K_FROM + INFORMATION_SCHEMA_COLUMNS + 
-					K_WHERE + TABLE_SCHEMA + K_EQ + K_BIND_VALUE +
-					K_AND + TABLE_NAME + K_EQ + K_BIND_VALUE;
+					K_COUNT_ONE + K_FROM + INFORMATION_SCHEMA_TABLES + 
+					K_WHERE + IST_TABLE_SCHEMA + K_EQ + K_BIND_VALUE +
+					K_AND + IST_TABLE_NAME + K_EQ + K_BIND_VALUE;
 		
 		private static final String YES = "YES";
 		private static final String TEXT = "text"; // lower case!
@@ -226,13 +246,13 @@ public class DatastoreImpl implements Datastore {
 		}
 	};
 
-	JdbcTemplate getJdbcTemplate() {
-		return jdbcTemplate;
-	}
-
 	@Override
 	public String getDefaultSchemaName() {
 		return schemaName;
+	}
+
+	JdbcTemplate getJdbcConnection() {
+		return new JdbcTemplate(dataSource);
 	}
 
 	@Override
@@ -248,7 +268,7 @@ public class DatastoreImpl implements Datastore {
 	private final boolean updateRelation(CommonFieldsBase relation ) throws ODKDatastoreException {
 
 		String qs = TableDefinition.TABLE_DEF_QUERY;
-		List<?> columns = jdbcTemplate.query(qs,
+		List<?> columns = getJdbcConnection().query(qs,
 					new Object[] {relation.getSchemaName(), relation.getTableName()}, tableDef);
 
 		if ( columns.size() > 0 ) {
@@ -429,17 +449,25 @@ public class DatastoreImpl implements Datastore {
 				// index by parent
 				b.append(", INDEX(" );
 				b.append(K_BQ);
-				b.append(relation.parentAuri.getName());
+				b.append(((DynamicBase) relation).parentAuri.getName());
 				b.append(K_BQ);
 				b.append(K_CLOSE_PAREN);
 				b.append(K_USING_HASH);
 				break;
 			case STATIC_ASSOCIATION:
+				// index by dominant type
+				b.append(", INDEX(" );
+				b.append(K_BQ);
+				b.append(((StaticAssociationBase) relation).domAuri.getName());
+				b.append(K_BQ);
+				b.append(K_CLOSE_PAREN);
+				b.append(K_USING_HASH);
+				break;
 			case DYNAMIC_ASSOCIATION:
 				// index by dominant type
 				b.append(", INDEX(" );
 				b.append(K_BQ);
-				b.append(relation.domAuri.getName());
+				b.append(((DynamicAssociationBase) relation).domAuri.getName());
 				b.append(K_BQ);
 				b.append(K_CLOSE_PAREN);
 				b.append(K_USING_HASH);
@@ -448,7 +476,7 @@ public class DatastoreImpl implements Datastore {
 			b.append(K_CLOSE_PAREN);
 	
 			try {
-				jdbcTemplate.execute(b.toString());
+				getJdbcConnection().execute(b.toString());
 			} catch ( DataAccessException e ) {
 				e.printStackTrace();
 				throw new IllegalStateException("unable to execute: " + b.toString() +
@@ -463,8 +491,8 @@ public class DatastoreImpl implements Datastore {
 	@Override
 	public boolean hasRelation(String schema, String tableName, User user) {
 		String qs = TableDefinition.TABLE_EXISTS_QUERY;
-		int columnCount = jdbcTemplate.queryForInt(qs, new Object[] {schema, tableName});
-		return (columnCount != 0);
+		int count = getJdbcConnection().queryForInt(qs, new Object[] {schema, tableName});
+		return (count != 0);
 	}
 
 	@Override
@@ -481,26 +509,36 @@ public class DatastoreImpl implements Datastore {
 		b.append(K_BQ);
 		
 		// TODO: log
-		jdbcTemplate.execute(b.toString());
+		getJdbcConnection().execute(b.toString());
 	}
 
 	/***************************************************************************
 	 * Entity manipulation APIs
 	 * 
 	 */
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends CommonFieldsBase> T createEntityUsingRelation(T relation,
 			EntityKey topLevelAuriKey, User user) {
 		
 		// we are generating our own PK, so we don't need to interact with DB yet...
-		T rel = (T) relation.getEmptyRow(relation.getClass(), user);
+		T row;
+		try {
+			row = (T) relation.getEmptyRow(user);
+		} catch ( Exception e ) {
+			throw new IllegalStateException("failed to create empty row", e);
+		}
 
 		if ( topLevelAuriKey != null ) {
-			rel.setTopLevelAuri(topLevelAuriKey.getKey());
+			if ( row instanceof DynamicAssociationBase ) {
+				((DynamicAssociationBase) row).setTopLevelAuri(topLevelAuriKey.getKey());
+			} else if ( row instanceof DynamicDocumentBase ) {
+				((DynamicDocumentBase) row).setTopLevelAuri(topLevelAuriKey.getKey());
+			} else if ( row instanceof DynamicBase ) {
+				((DynamicBase) row).setTopLevelAuri(topLevelAuriKey.getKey());
+			}
 		}
-		return rel;
+		return row;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -518,7 +556,6 @@ public class DatastoreImpl implements Datastore {
 			}
 			return (T) results.get(0);
 		} catch (ODKDatastoreException e) {
-			e.printStackTrace();
 			throw new ODKEntityNotFoundException("Unable to retrieve "
 					+ relation.getSchemaName() + "." + relation.getTableName() 
 					+ " key: " + uri, e );
@@ -617,7 +654,7 @@ public class DatastoreImpl implements Datastore {
 			il[idx] = java.sql.Types.VARCHAR;
 			
 			// update...
-			jdbcTemplate.update(b.toString(), ol, il);
+			getJdbcConnection().update(b.toString(), ol, il);
 		} else {
 			// not yet in database -- insert
 			b.append(K_INSERT_INTO);
@@ -696,7 +733,7 @@ public class DatastoreImpl implements Datastore {
 			b.append(K_CLOSE_PAREN);
 			
 			// insert...
-			jdbcTemplate.update(b.toString(), ol, il);
+			getJdbcConnection().update(b.toString(), ol, il);
 			entity.setFromDatabase(true); // now it is in the database...
 		}
 	}
@@ -729,9 +766,10 @@ public class DatastoreImpl implements Datastore {
 		b.append(K_BQ);
 		b.append(K_EQ);
 		b.append(K_BIND_VALUE);
-
+		
 		// TODO: log deletion
-		jdbcTemplate.update(b.toString(), new Object[] {key.getKey()});
+		Logger.getLogger(this.getClass().getName()).info("Executing " + b.toString() + " with key " + key.getKey());
+		getJdbcConnection().update(b.toString(), new Object[] {key.getKey()});
 	}
 
 	@Override
@@ -742,4 +780,9 @@ public class DatastoreImpl implements Datastore {
 			deleteEntity(k, user);
 		}
 	}
+	
+	  @Override
+	  public TaskLock createTaskLock() {
+	    return new TaskLockImpl();
+	  }
 }

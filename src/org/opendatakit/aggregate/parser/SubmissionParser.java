@@ -30,23 +30,23 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.codec.binary.Base64;
 import org.opendatakit.aggregate.constants.ParserConsts;
 import org.opendatakit.aggregate.constants.ServletConsts;
-import org.opendatakit.aggregate.datamodel.FormDataModel;
-import org.opendatakit.aggregate.datamodel.FormDefinition;
+import org.opendatakit.aggregate.datamodel.FormElementModel;
 import org.opendatakit.aggregate.exception.ODKConversionException;
 import org.opendatakit.aggregate.exception.ODKFormNotFoundException;
 import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData;
 import org.opendatakit.aggregate.exception.ODKParseException;
 import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData.Reason;
+import org.opendatakit.aggregate.form.Form;
 import org.opendatakit.aggregate.submission.Submission;
 import org.opendatakit.aggregate.submission.SubmissionField;
 import org.opendatakit.aggregate.submission.SubmissionSet;
+import org.opendatakit.aggregate.submission.type.BlobSubmissionType;
 import org.opendatakit.aggregate.submission.type.RepeatSubmissionType;
 import org.opendatakit.common.constants.BasicConsts;
 import org.opendatakit.common.constants.HtmlConsts;
 import org.opendatakit.common.persistence.Datastore;
 import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
-import org.opendatakit.common.security.Realm;
 import org.opendatakit.common.security.User;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -59,16 +59,17 @@ import org.xml.sax.SAXException;
  * Parsers submission xml and saves to datastore
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
 public class SubmissionParser {
 
 	/**
-	 * Odk Id of submission
+	 * form Id of submission
 	 */
-	private String odkId;
+	private String formId;
 
-	private FormDefinition formDefinition;
+	private Form form;
 
 	/**
 	 * Root of XML submission
@@ -87,7 +88,6 @@ public class SubmissionParser {
 
 	private final Datastore ds;
 	private final User user;
-	private final Realm realm;
 
 	private EntityKey topLevelTableKey = null;
 
@@ -108,12 +108,11 @@ public class SubmissionParser {
 	 * @throws ODKDatastoreException
 	 */
 	public SubmissionParser(InputStream inputStreamXML, Datastore datastore,
-			User user, Realm realm) throws IOException, ODKFormNotFoundException,
+			User user) throws IOException, ODKFormNotFoundException,
 			ODKParseException, ODKIncompleteSubmissionData,
 			ODKConversionException, ODKDatastoreException {
 		this.ds = datastore;
 		this.user = user;
-		this.realm = realm;
 		constructorHelper(inputStreamXML);
 	}
 
@@ -135,13 +134,12 @@ public class SubmissionParser {
 	 * @throws ODKDatastoreException
 	 */
 	public SubmissionParser(MultiPartFormData submissionFormParser,
-			Datastore datastore, User user, Realm  realm) throws IOException,
+			Datastore datastore, User user) throws IOException,
 			ODKFormNotFoundException, ODKParseException,
 			ODKIncompleteSubmissionData, ODKConversionException,
 			ODKDatastoreException {
 		this.ds = datastore;
 		this.user = user;
-		this.realm = realm;
 		if (submissionFormParser == null) {
 			// TODO: review best error handling strategy
 			throw new IOException("DID NOT GET A MULTIPARTFORMPARSER");
@@ -154,9 +152,12 @@ public class SubmissionParser {
 			throw new IOException("DID NOT GET A SUBMISSION");
 		}
 
-		String submissionXML = submission.getStream().toString();
-		System.out.println(submissionXML);
-		constructorHelper(new ByteArrayInputStream(submissionXML.getBytes()));
+		InputStream inputStreamXML = new ByteArrayInputStream(submission.getStream().toByteArray());
+		try {
+			constructorHelper(inputStreamXML);
+		} finally {
+			inputStreamXML.close();
+		}
 	}
 
 	/**
@@ -186,10 +187,10 @@ public class SubmissionParser {
 			printNode(root);
 
 			// check for odk id
-			odkId = root.getAttribute(ParserConsts.ODK_ATTRIBUTE_NAME);
+			formId = root.getAttribute(ParserConsts.FORM_ID_ATTRIBUTE_NAME);
 
 			// if odk id is not present use namespace
-			if (odkId.equalsIgnoreCase(BasicConsts.EMPTY_STRING)) {
+			if (formId.equalsIgnoreCase(BasicConsts.EMPTY_STRING)) {
 				String schema = root
 						.getAttribute(ParserConsts.NAMESPACE_ATTRIBUTE);
 
@@ -197,40 +198,58 @@ public class SubmissionParser {
 				if (schema == null) {
 					throw new ODKIncompleteSubmissionData(Reason.ID_MISSING);
 				}
-				String httpPrefix = "http://";
-				String httpsPrefix = "https://";
-
-				odkId = schema;
-				if (schema.startsWith(httpPrefix)) {
-					odkId = schema.substring(httpPrefix.length());
-				} else if (schema.startsWith(httpsPrefix)) {
-					odkId = schema.substring(httpsPrefix.length());
-				}
-				odkId = odkId.replaceAll(
-						"[^\\p{Digit}\\p{javaUpperCase}\\p{javaLowerCase}]",
-						"_");
+				
+				formId = schema;
 			}
 
 		} catch (ParserConfigurationException e) {
-			throw new IOException(e.getCause());
+			throw new IOException(e);
 		} catch (SAXException e) {
 			e.printStackTrace();
-			throw new IOException(e.getCause());
+			throw new IOException(e);
 		}
-		String fullyQualifiedId = FormDefinition.extractWellFormedFormId(odkId, realm);
 
-		formDefinition = FormDefinition.getFormDefinition(fullyQualifiedId, ds, user);
+		// need to escape all slashes... for xpath processing...
+		formId = formId.replaceAll(ParserConsts.FORWARD_SLASH, ParserConsts.FORWARD_SLASH_SUBSTITUTION);
+		
+		String fullyQualifiedId = Form.extractWellFormedFormId(formId);
 
-		submission = new Submission(formDefinition, ds, user);
+		form = Form.retrieveForm(fullyQualifiedId, ds, user);
+		
+		String modelVersionString = root.getAttribute(ParserConsts.MODEL_VERSION_ATTRIBUTE_NAME);
+		String uiVersionString = root.getAttribute(ParserConsts.UI_VERSION_ATTRIBUTE_NAME);
+		Long modelVersion = null;
+		Long uiVersion = null;
+		if ( modelVersionString != null && modelVersionString.length() > 0 ) {
+			modelVersion = Long.valueOf(modelVersionString);
+		}
+		if ( uiVersionString != null && uiVersionString.length() > 0 ) {
+			uiVersion = Long.valueOf(uiVersionString);
+		}
+		
+		submission = new Submission(modelVersion, uiVersion, form.getFormDefinition(), ds, user);
 
 		topLevelTableKey = submission.getKey();
 
-		FormDataModel formRoot = formDefinition.getTopLevelGroup();
-		processSubmissionElement(formRoot, root, submission, true, false);
+		FormElementModel formRoot = form.getTopLevelGroupElement();
+		boolean uploadAllBinaries = processSubmissionElement(formRoot, root, submission);
 
+		// TODO: figure out if we actually have all the binary content uploaded...
+		submission.setIsComplete(true);
 		// save the elements inserted into the top-level submission
-		submission.persist(ds, user);
-		inputStreamXML.close();
+		try {
+			submission.persist(ds, user);
+		} catch (Exception e) {
+			List<EntityKey> keys = new ArrayList<EntityKey>();
+			submission.recursivelyAddEntityKeys(keys);
+			keys.add(submission.getKey());
+			try {
+				ds.deleteEntities(keys, user);
+			} catch ( Exception ex) {
+				// ignore... we are rolling back...
+			}
+			throw new ODKDatastoreException("Unable to persist data", e);
+		}
 	}
 
 	/**
@@ -249,125 +268,107 @@ public class SubmissionParser {
 	 * applies itself to children of the form element.
 	 * 
 	 * @param node
-	 *            form element to parse from the XML submission
+	 *            form data model of the group or repeat group being parsed.
+	 * @param currentSubmissionElement
+	 *            xml document element that marks the start of this submission set.
 	 * @param submissionSet
-	 *            the set of submission to add the submission value to
-	 * @param submissionRoot
-	 *            value true if root of submission, false otherwise
+	 *            the submission set to add the submission values to.
 	 * @throws ODKParseException
 	 * @throws ODKIncompleteSubmissionData
 	 * @throws ODKConversionException
 	 * @throws ODKDatastoreException
 	 */
-	private void processSubmissionElement(FormDataModel node,
-			Element currentSubmissionElement, SubmissionSet submissionSet,
-			boolean submissionRoot, boolean inRepeatList)
+	private boolean processSubmissionElement(FormElementModel node,
+			Element currentSubmissionElement, SubmissionSet submissionSet)
 			throws ODKParseException, ODKIncompleteSubmissionData,
 			ODKConversionException, ODKDatastoreException {
+
 		if (node == null || currentSubmissionElement == null) {
-			return;
+			return true;
 		}
 
 		// the element name of the fdm is the tag name...
 		String submissionTag = node.getElementName();
 		if (submissionTag == null) {
-			return;
+			return true;
 		}
 
-		if (submissionRoot) {
-			if (!currentSubmissionElement.getNodeName().equals(submissionTag)) {
-				throw new ODKParseException(
-						"Top level node does not match what was expected");
+		// verify that the xml matches the node we are processing...
+		if (!currentSubmissionElement.getNodeName().equals(submissionTag)) {
+			throw new ODKParseException(
+					"Xml document element tag: " + currentSubmissionElement.getNodeName() +
+					" does not match the xform data model tag name: " + submissionTag);
+		}
+		
+		// get the structure under the fdm tag name...
+		List<Element> elements = getElements(currentSubmissionElement);
+		if (elements.size() == 0) {
+			return true; // the group is not relevant...
+		}
+		// and for each of these, they should be fields under the given fdm
+		// and values within the submissionSet
+		boolean complete = true;
+		for (Element e : elements) {
+			FormElementModel m = node.findElementByName(e.getNodeName());
+			if (m == null) {
+				continue;
+				//throw new ODKParseException();
 			}
-		}
-
-		if (inRepeatList) {
-			// node is the repeat group outer tag...
-			// currentSubmissionElement is an instance of the repeat group.
-			// submissionSet is the set containing the repeat group.
-			List<Element> elements = getElementsInTree(
-					currentSubmissionElement, submissionTag);
-			RepeatSubmissionType repeats = (RepeatSubmissionType) submissionSet
-					.getElementValue(node);
-			int i = 1;
-			for (Element e : elements) {
+			switch (m.getElementType()) {
+			case GROUP:
+				// need to recurse on these elements keeping the same
+				// submissionSet...
+				complete = complete && 
+					processSubmissionElement(m, e, submissionSet);
+				break;
+			case REPEAT:
+				// get the field that will hold the repeats...
+				RepeatSubmissionType repeats = 
+					(RepeatSubmissionType) submissionSet.getElementValue(m);
+				// Create a submission set for a new instance...
+				long l = repeats.getNumberRepeats()+1L;
 				SubmissionSet repeatableSubmissionSet = new SubmissionSet(
-						submissionSet, Long.valueOf(i++), node, formDefinition,
+						submissionSet, l, m, form.getFormDefinition(),
 						topLevelTableKey, ds, user);
-				processSubmissionElement(node, e, repeatableSubmissionSet,
-						false, false);
+				// populate the instance's submission set with values from e...
+				complete = complete && 
+					processSubmissionElement(m, e, repeatableSubmissionSet);
+				// add the instance to the repeat group...
 				repeats.addSubmissionSet(repeatableSubmissionSet);
-			}
-		} else {
-			// get the structure under the fdm tag name...
-			List<Element> elements = getElements(currentSubmissionElement);
-			if (elements.size() == 0) {
-				throw new ODKParseException();
-			}
-			// and for each of these, they should be fields under the given fdm
-			// and
-			// values within the submissionSet
-			for (Element e : elements) {
-				// NOTE: this navigates into phantom tables...
-				FormDataModel m = node.findElementByName(e.getNodeName());
-				if (m == null) {
-					continue;
-					//throw new ODKParseException();
-				}
-				switch (m.getElementType()) {
-				case PHANTOM: // if a relation needs to be divided in order to
-								// fit
-				case VERSIONED_BINARY: // association between BINARY and
-										// VERSIONED_BINARY_CONTENT_BLOB
-				case VERSIONED_BINARY_CONTENT_REF_BLOB: // association between
-														// VERSIONED_BINARY and
-														// REF_BLOB
-				case REF_BLOB: // the table of the actual byte[] data (xxxBLOB)
-				case LONG_STRING_REF_TEXT: // association between any field and
-											// REF_TEXT
-				case REF_TEXT: // the table of extended string values (xxxTEXT)
-					throw new IllegalStateException(
-							"Unexpectedly retrieved hidden elements!");
-				case GROUP:
-					// need to recurse on these elements keeping at the same
-					// submissionSet...
-					processSubmissionElement(m, e, submissionSet, false, false);
-					break;
-				case REPEAT:
-					// recurse on these, keeping the same submissionSet so we
-					// can find
-					// the repeat element to store new submission sets under...
-					processSubmissionElement(node, e, submissionSet, false,
-							true);
-					break;
-				case STRING:
-				case JRDATETIME:
-				case JRDATE:
-				case JRTIME:
-				case INTEGER:
-				case DECIMAL:
-				case BOOLEAN:
-				case SELECT1: // identifies SelectChoice table
-				case SELECTN: // identifies SelectChoice table
-				case GEOPOINT:
-					String value = getSubmissionValue(e);
-					((SubmissionField<?>) submissionSet.getElementValue(m))
-							.setValueFromString(value);
-					break;
-				case BINARY: // identifies BinaryContent table
-					value = getSubmissionValue(e);
-					SubmissionField<?> submissionElement = ((SubmissionField<?>) submissionSet
-							.getElementValue(m));
+				break;
+			case STRING:
+			case JRDATETIME:
+			case JRDATE:
+			case JRTIME:
+			case INTEGER:
+			case DECIMAL:
+			case BOOLEAN:
+			case SELECT1: // identifies SelectChoice table
+			case SELECTN: // identifies SelectChoice table
+				String value = getSubmissionValue(e);
+				((SubmissionField<?>) submissionSet.getElementValue(m))
+						.setValueFromString(value);
+				break;
+			case GEOPOINT:
+				value = getSubmissionValue(e);
+				((SubmissionField<?>) submissionSet.getElementValue(m))
+						.setValueFromString(value);
+				break;
+			case BINARY: // identifies BinaryContent table
+				value = getSubmissionValue(e);
+				SubmissionField<?> submissionElement = ((SubmissionField<?>) submissionSet
+						.getElementValue(m));
+				complete = complete && 
 					processBinarySubmission(m, submissionElement, value);
-					break;
-				}
+				break;
 			}
 		}
+		return complete;
 	}
 
-	private void processBinarySubmission(FormDataModel node,
+	private boolean processBinarySubmission(FormElementModel m,
 			SubmissionField<?> submissionElement, String value)
-			throws ODKConversionException, ODKDatastoreException {
+			throws ODKDatastoreException {
 		
 		// check to see if we received a multipart submission
 		if (submissionFormItems == null) {
@@ -399,11 +400,10 @@ public class SubmissionParser {
 						.getContentType(), binaryData.getContentLength(), fileName,
 						ds, user);
 			} else {
-				// TODO: decide if we want system to reject submission if file
-				// is not found?
-				System.err.println("UNABLE TO FIND VALUE OF " + value);
+				return (((BlobSubmissionType) submissionElement).getAttachmentCount() >= 1);
 			}
 		}
+		return true;
 	}
 
 	private List<Element> getElements(Element rootNode) {
@@ -414,22 +414,6 @@ public class SubmissionParser {
 		for (int i = 0; i < nodeList.getLength(); ++i) {
 			Node node = nodeList.item(i);
 			if (node.getNodeType() == Node.ELEMENT_NODE) {
-				elements.add((Element) node);
-			}
-		}
-		return elements;
-	}
-
-	private List<Element> getElementsInTree(Element rootNode,
-			String submissionTag) {
-		List<Element> elements = new ArrayList<Element>();
-
-		// find the elements
-		NodeList nodeList = rootNode.getElementsByTagName(submissionTag);
-		for (int i = 0; i < nodeList.getLength(); i++) {
-			Node node = nodeList.item(i);
-			if (node.getNodeType() == Node.ELEMENT_NODE
-					&& node.getNodeName().equals(submissionTag)) {
 				elements.add((Element) node);
 			}
 		}
@@ -502,15 +486,15 @@ public class SubmissionParser {
 	}
 
 	/**
-	 * Get the ODK Id of submission
+	 * Get the form Id of submission
 	 * 
-	 * @return ODK Id
+	 * @return form Id
 	 */
-	public String getOdkId() {
-		return odkId;
+	public String getSubmissionFormId() {
+		return formId;
 	}
 
-	public FormDefinition getFormDefinition() {
-		return formDefinition;
+	public Form getForm() {
+		return form;
 	}
 }

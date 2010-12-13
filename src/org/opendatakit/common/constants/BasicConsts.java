@@ -23,9 +23,10 @@ import java.util.Date;
  * Constants used in ODK aggregate that are shared everywhere
  *
  * @author wbrunette@gmail.com
- *
+ * @author mitchellsundt@gmail.com
+ * 
  */
-public class BasicConsts {
+public final class BasicConsts {
 
   public static final String NULL = "NULL";
   
@@ -41,6 +42,7 @@ public class BasicConsts {
   public static final String FORWARDSLASH = "/";
   public static final String TRUE = "true";
   public static final String QUOTE = "\"";
+  public static final String QUOTE_QUOTE = "\"\"";
   public static final String SINGLE_QUOTE = "'";
   public static final String SEMI_COLON = ";";
   public static final String COLON = ":";

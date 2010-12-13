@@ -10,5 +10,8 @@
 <bean id="user_service" class="org.opendatakit.common.security.gae.UserServiceImpl" /> 
 <bean id="worksheet_creator" class="org.opendatakit.aggregate.task.gae.WorksheetCreatorImpl" /> 
 <bean id="form_delete" class="org.opendatakit.aggregate.task.gae.FormDeleteImpl" /> 
+<bean id="upload_task" class="org.opendatakit.aggregate.task.gae.UploadSubmissionsImpl" /> 
+<bean id="kml_task" class="org.opendatakit.aggregate.task.gae.KmlGeneratorImpl" /> 
+<bean id="csv_task" class="org.opendatakit.aggregate.task.gae.CsvGeneratorImpl" /> 
  
 </beans>

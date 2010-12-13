@@ -20,16 +20,16 @@ package org.opendatakit.aggregate.submission.type;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.opendatakit.aggregate.datamodel.FormDataModel;
-import org.opendatakit.aggregate.datamodel.FormDefinition;
+import org.opendatakit.aggregate.datamodel.FormElementModel;
 import org.opendatakit.aggregate.datamodel.LongStringRefText;
 import org.opendatakit.aggregate.datamodel.RefText;
+import org.opendatakit.aggregate.form.FormDefinition;
+import org.opendatakit.aggregate.format.Row;
 import org.opendatakit.aggregate.format.element.ElementFormatter;
-import org.opendatakit.aggregate.format.element.Row;
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
+import org.opendatakit.common.persistence.DynamicCommonFieldsBase;
 import org.opendatakit.common.persistence.EntityKey;
-import org.opendatakit.common.persistence.InstanceDataBase;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.persistence.exception.ODKEntityPersistException;
 import org.opendatakit.common.security.User;
@@ -38,6 +38,7 @@ import org.opendatakit.common.security.User;
  * Data Storage Converter for String Type
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
 public class StringSubmissionType extends SubmissionFieldBase<String> {
@@ -45,13 +46,14 @@ public class StringSubmissionType extends SubmissionFieldBase<String> {
 	  /**
 	   * Backing object holding the value of the submission field
 	   */
-	protected InstanceDataBase backingObject;
+	protected final DynamicCommonFieldsBase backingObject;
 
 	private String fullValue = null;
-	private FormDefinition formDefinition;
-	private EntityKey topLevelTableKey;
-	private Datastore datastore;
-	private User user;
+	private final String parentKey;
+	private final FormDefinition formDefinition;
+	private final EntityKey topLevelTableKey;
+	private final Datastore datastore;
+	private final User user;
 	private List<LongStringRefText> lsts = new ArrayList<LongStringRefText>();
 	private List<RefText> refs = new ArrayList<RefText>();
 
@@ -65,9 +67,11 @@ public class StringSubmissionType extends SubmissionFieldBase<String> {
 	 * @param propertyName
 	 *            Name of submission element
 	 */
-	public StringSubmissionType(InstanceDataBase backingObject, FormDataModel element, FormDefinition formDefinition, EntityKey topLevelTableKey, Datastore datastore, User user) {
-		super(element);
+	public StringSubmissionType(DynamicCommonFieldsBase backingObject, FormElementModel m, 
+						String parentKey, FormDefinition formDefinition, EntityKey topLevelTableKey, Datastore datastore, User user) {
+		super(m);
 		this.backingObject = backingObject;
+		this.parentKey = parentKey;
 		this.formDefinition = formDefinition;
 		this.topLevelTableKey = topLevelTableKey;
 		this.datastore = datastore;
@@ -82,9 +86,9 @@ public class StringSubmissionType extends SubmissionFieldBase<String> {
 	 *            proper format for output
 	 */
 	@Override
-	public void formatValue(ElementFormatter elemFormatter, Row row)
+	public void formatValue(ElementFormatter elemFormatter, Row row, String ordinalValue)
 			throws ODKDatastoreException {
-		elemFormatter.formatString(getValue(), element.getElementName(), row);
+		elemFormatter.formatString(getValue(), element.getGroupQualifiedElementName() + ordinalValue, row);
 	}
 
 	/**
@@ -97,27 +101,18 @@ public class StringSubmissionType extends SubmissionFieldBase<String> {
 	@Override
 	public void setValueFromString(String value) throws ODKEntityPersistException {
 		fullValue = value;
-		if ( !backingObject.setStringField(element.getBackingKey(), value)) {
-			formDefinition.setLongString(value, backingObject.getUri(), element.getUri(), topLevelTableKey, datastore, user);
+		if ( !backingObject.setStringField(element.getFormDataModel().getBackingKey(), value)) {
+			formDefinition.setLongString(value, backingObject.getUri(), element.getFormDataModel().getUri(), topLevelTableKey, datastore, user);
 		}
 	}
 
-	/**
-	 * Get submission field value from database entity
-	 * 
-	 * @param dbEntity
-	 *            entity to obtain value
-	 * @throws ODKDatastoreException 
-	 */
 	@Override
-	public void getValueFromEntity(CommonFieldsBase dbEntity,
-			String uriAssociatedRow, EntityKey topLevelTableKey,
-			Datastore datastore, User user, boolean fetchElement)
+	public void getValueFromEntity(Datastore datastore, User user)
 			throws ODKDatastoreException {
 		
-		String value = (String) dbEntity.getStringField(element.getBackingKey());
-		if (element.isPossibleLongStringField(dbEntity, element.getBackingKey())) {
-			String longValue = formDefinition.getLongString(uriAssociatedRow, element.getUri(), datastore, user);
+		String value = (String) backingObject.getStringField(element.getFormDataModel().getBackingKey());
+		if (element.getFormDataModel().isPossibleLongStringField(backingObject, element.getFormDataModel().getBackingKey())) {
+			String longValue = formDefinition.getLongString(parentKey, element.getFormDataModel().getUri(), datastore, user);
 			if ( longValue != null ) {
 				value = longValue;
 			}

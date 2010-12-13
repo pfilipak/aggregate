@@ -21,9 +21,11 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -40,6 +42,7 @@ import org.opendatakit.aggregate.constants.ParserConsts;
  * name (or both) provided in the http submission
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
 public class MultiPartFormData {
@@ -47,6 +50,8 @@ public class MultiPartFormData {
 	private Map<String, MultiPartFormItem> fieldNameMap;
 
 	private Map<String, MultiPartFormItem> fileNameMap;
+
+	private Map<String, MultiPartFormItem> fileNameWithoutExtensionNameMap;
 
 	/**
 	 * Construct a mult-part form data container by parsing a multi part form
@@ -65,6 +70,7 @@ public class MultiPartFormData {
 
 		fieldNameMap = new HashMap<String, MultiPartFormItem>();
 		fileNameMap = new HashMap<String, MultiPartFormItem>();
+		fileNameWithoutExtensionNameMap = new HashMap<String, MultiPartFormItem>();
 
 		ServletFileUpload upload = new ServletFileUpload(
 				new DiskFileItemFactory());
@@ -152,12 +158,11 @@ public class MultiPartFormData {
 			String fileName = b.toString();
 			e.setFilename(fileName);
 			if (fileName != null) {
-				// TODO: possible bug in ODK collect is truncating file
-				// extension
+				// TODO: possible bug in ODK collect truncating file extension
 				// may need to remove this code after ODK collect is fixed
 				int indexOfExtension = fileName.lastIndexOf(".");
 				if (indexOfExtension > 0) {
-					fileNameMap.put(
+					fileNameWithoutExtensionNameMap.put(
 							fileName.substring(0, indexOfExtension), e);
 				}
 				fileNameMap.put(fileName, e);
@@ -170,7 +175,15 @@ public class MultiPartFormData {
 	}
 
 	public MultiPartFormItem getFormDataByFileName(String fileName) {
-		return fileNameMap.get(fileName);
+		MultiPartFormItem item = fileNameMap.get(fileName);
+		if ( item != null ) return item;
+		// workaround for truncated filenames in bad versions of Collect
+		// TODO: keep or remove?
+		return fileNameWithoutExtensionNameMap.get(fileName);
+	}
+	
+	public Set<Map.Entry<String,MultiPartFormItem>> getFileNameEntrySet() {
+		return Collections.unmodifiableSet(fileNameMap.entrySet());
 	}
 
 }

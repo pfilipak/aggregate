@@ -16,27 +16,37 @@
 package org.opendatakit.aggregate.servlet;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.opendatakit.aggregate.ContextFactory;
+import org.opendatakit.aggregate.constants.BeanDefs;
 import org.opendatakit.aggregate.constants.ServletConsts;
-import org.opendatakit.aggregate.datamodel.FormDataModel;
-import org.opendatakit.aggregate.datamodel.FormDefinition;
+import org.opendatakit.aggregate.datamodel.FormElementModel;
+import org.opendatakit.aggregate.exception.ODKFormNotFoundException;
+import org.opendatakit.aggregate.form.Form;
 import org.opendatakit.aggregate.format.SubmissionFormatter;
 import org.opendatakit.aggregate.format.table.HtmlFormatter;
 import org.opendatakit.aggregate.submission.Submission;
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
-import org.opendatakit.common.persistence.InstanceDataBase;
+import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.Query;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.security.User;
 import org.opendatakit.common.security.UserService;
 
+/**
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
+ */
 public class QueryResultsServlet extends ServletUtilBase {
 
 	/**
@@ -70,11 +80,11 @@ public class QueryResultsServlet extends ServletUtilBase {
 		}
 
 		UserService userService = (UserService) ContextFactory.get().getBean(
-				ServletConsts.USER_BEAN);
+				BeanDefs.USER_BEAN);
 		User user = userService.getCurrentUser();
 
 		// get parameter
-		String formId = getParameter(req, ServletConsts.ODK_ID);
+		String formId = getParameter(req, ServletConsts.FORM_ID);
 		if (formId == null) {
 			errorMissingKeyParam(resp);
 			return;
@@ -91,20 +101,21 @@ public class QueryResultsServlet extends ServletUtilBase {
 
 		// get form
 		Datastore ds = (Datastore) ContextFactory.get().getBean(
-				ServletConsts.DATASTORE_BEAN);
-		FormDefinition fd = FormDefinition.getFormDefinition(formId, ds, user);
-		if (fd == null) {
+				BeanDefs.DATASTORE_BEAN);
+		Form form = null;
+		try {
+			form = Form.retrieveForm(formId, ds, user);
+		} catch ( ODKFormNotFoundException e) {
 			odkIdNotFoundError(resp);
 			return;
 		}
-		FormDataModel fdm = fd.getElementByName(formId);
-
-		CommonFieldsBase tbl = fdm.getBackingObjectPrototype();
-
-		FormDataModel element = fdm.findElementByName(field);
+		
+		FormElementModel element = form.findElementByName(field);
+		CommonFieldsBase tbl = element.getParent().getFormDataModel().getBackingObjectPrototype();
 
 		if (element == null) {
 			errorRetreivingData(resp);
+			return;
 		}
 
 		Object compareValue = null;
@@ -113,28 +124,29 @@ public class QueryResultsServlet extends ServletUtilBase {
 			compareValue = Boolean.parseBoolean(value);
 			break;
 		case INTEGER:
-			compareValue = Integer.parseInt(value);
+			compareValue = Long.valueOf(value);
 			break;
 		case DECIMAL:
-			compareValue = Double.parseDouble(value);
+			compareValue = new BigDecimal(value);
 			break;
 		case STRING:
 			compareValue = value;
 			break;
+		default:
+			throw new IllegalStateException("datatype not supported");			
 		}
 		Query query = ds.createQuery(tbl, user);
-		query.addFilter(element.getBackingKey(), Query.FilterOperation
+		query.addFilter(element.getFormDataModel().getBackingKey(), Query.FilterOperation
 				.valueOf(op), compareValue);
 		try {
 			List<Submission> submissions = new ArrayList<Submission>();
-			List<? extends CommonFieldsBase> entities = query
-					.executeQuery(1000);
-			for (CommonFieldsBase entity : entities) {
-				submissions.add(new Submission((InstanceDataBase) entity, fd,
-						ds, user));
+			Set<EntityKey> keys = query
+					.executeTopLevelKeyQuery(form.getTopLevelGroupElement().getFormDataModel().getBackingObjectPrototype());
+			for ( EntityKey k : keys ) {
+				submissions.add( new Submission(k.getKey(), form, ds, user));
 			}
 
-			SubmissionFormatter formatter = new HtmlFormatter(fd,
+			SubmissionFormatter formatter = new HtmlFormatter(form,
 					getServerURL(req), resp.getWriter(), null, true);
 
 			beginBasicHtmlResponse(TITLE_INFO, resp, req, true); // header info

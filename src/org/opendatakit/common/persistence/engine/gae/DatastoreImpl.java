@@ -22,8 +22,12 @@ import java.util.List;
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.DataField;
 import org.opendatakit.common.persistence.Datastore;
+import org.opendatakit.common.persistence.DynamicAssociationBase;
+import org.opendatakit.common.persistence.DynamicBase;
+import org.opendatakit.common.persistence.DynamicDocumentBase;
 import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.Query;
+import org.opendatakit.common.persistence.TaskLock;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.persistence.exception.ODKEntityNotFoundException;
 import org.opendatakit.common.persistence.exception.ODKEntityPersistException;
@@ -39,6 +43,12 @@ import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.PreparedQuery;
 import com.google.appengine.api.datastore.Text;
 
+/**
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
+ */
 public class DatastoreImpl implements Datastore {
 
 	/**
@@ -86,6 +96,8 @@ public class DatastoreImpl implements Datastore {
 	@Override
 	public void createRelation(CommonFieldsBase relation, User user)
 			throws ODKDatastoreException {
+		int nColumns = 0;
+		long nBytes = 0L;
 		for ( DataField d : relation.getFieldList() ) {
 			switch ( d.getDataType() ) {
 			case LONG_STRING:
@@ -97,17 +109,34 @@ public class DatastoreImpl implements Datastore {
 				if ( d.getMaxCharLen() == null ) {
 					d.setMaxCharLen(GAE_MAX_STRING_LEN);
 				}
+				nBytes += d.getMaxCharLen();
+				++nColumns;
 				break;
 			case DATETIME:
+				nBytes += 24;
+				++nColumns;
 				break;
 			case INTEGER:
 				d.setNumericPrecision(DEFAULT_INT_NUMERIC_PRECISION);
+				nBytes += 8;
+				++nColumns;
 				break;
 			case DECIMAL:
 				d.setNumericPrecision(DEFAULT_DBL_NUMERIC_PRECISION);
 				d.setNumericScale(DEFAULT_DBL_NUMERIC_SCALE);
+				nBytes += 8;
+				++nColumns;
 				break;
 			}
+		}
+		// limits for GAE are 5000 columns and 1Mb for a batch put request.
+		// Don't know how much overhead there is in the construction of the 
+		// request, but figure 30% overhead (which is absurd).
+		//
+		// Insist the upper layers partition the data tables when they have
+		// more than potentially 4000 columns or 700,000 bytes of data per row.
+		if ( (nColumns > 4000) || (nBytes > 700000)) {
+			throw new ODKDatastoreException("table is overly large");
 		}
 	}
 
@@ -150,24 +179,22 @@ public class DatastoreImpl implements Datastore {
 	@Override
 	public <T extends CommonFieldsBase> T createEntityUsingRelation(T relation,
 			EntityKey topLevelAuriKey, User user) {
-		CommonFieldsBase row = relation.getEmptyRow(relation.getClass(), user);
-
-		com.google.appengine.api.datastore.Entity gaeEntity;
-
-		if (topLevelAuriKey != null) {
-			row.setTopLevelAuri(topLevelAuriKey.getKey());
-//			Key gaeParentKey = constructGaeKey(topLevelAuriKey.getRelation(),
-//					topLevelAuriKey.getKey());
-//			gaeEntity = new com.google.appengine.api.datastore.Entity(
-//					constructGaeKind(row), row.getUri(), gaeParentKey);
-			gaeEntity = new com.google.appengine.api.datastore.Entity(
-					constructGaeKind(row), row.getUri());
-		} else {
-			gaeEntity = new com.google.appengine.api.datastore.Entity(
-					constructGaeKind(row), row.getUri());
+		CommonFieldsBase row;
+		try {
+			row = (T) relation.getEmptyRow(user);
+		} catch (Exception e) {
+			throw new IllegalStateException("failed to create empty row", e);
 		}
 
-		row.setOpaquePersistenceData(gaeEntity);
+		if (topLevelAuriKey != null) {
+			if ( row instanceof DynamicAssociationBase ) {
+				((DynamicAssociationBase) row).setTopLevelAuri(topLevelAuriKey.getKey());
+			} else if ( row instanceof DynamicDocumentBase ) {
+				((DynamicDocumentBase) row).setTopLevelAuri(topLevelAuriKey.getKey());
+			} else if ( row instanceof DynamicBase ) {
+				((DynamicBase) row).setTopLevelAuri(topLevelAuriKey.getKey());
+			}
+		}
 		return (T) row;
 	}
 
@@ -182,7 +209,13 @@ public class DatastoreImpl implements Datastore {
 		} catch (EntityNotFoundException e) {
 			throw new ODKEntityNotFoundException(e);
 		}
-		CommonFieldsBase row = relation.getEmptyRow(relation.getClass(), user);
+		
+		CommonFieldsBase row;
+		try {
+			row = relation.getEmptyRow(user);
+		} catch ( Exception e ) {
+			throw new IllegalStateException("failed to create empty row", e);
+		}
 		updateRowFromGae(row, gaeEntity);
 		return (T) row;
 	}
@@ -196,6 +229,7 @@ public class DatastoreImpl implements Datastore {
 	
 	public void updateRowFromGae(CommonFieldsBase row, com.google.appengine.api.datastore.Entity gaeEntity) {
 		row.setOpaquePersistenceData(gaeEntity);
+		row.setFromDatabase(true);
 		for ( DataField d : row.getFieldList() ) {
 			Object o = gaeEntity.getProperty(d.getName());
 			if ( o != null ) {
@@ -249,6 +283,19 @@ public class DatastoreImpl implements Datastore {
 		if (entity.isFromDatabase()) {
 			entity.setDateField(entity.lastUpdateDate, new Date());
 			entity.setStringField(entity.lastUpdateUriUser, user.getUriUser());
+		} else {
+			// we need to create the backing object...
+			//
+			com.google.appengine.api.datastore.Entity gaeEntity;
+			// because we sometimes access the nested records without first 
+			// accessing the top level record, it seems we can't leverage
+			// the Google BigTable parent-key feature for colocation unless
+			// we want to take a hit on the getEntity call and turn that 
+			// into a query.
+			gaeEntity = new com.google.appengine.api.datastore.Entity(
+							constructGaeKind(entity), entity.getUri());
+
+			entity.setOpaquePersistenceData(gaeEntity);
 		}
 
 		// get the google backing object...
@@ -369,4 +416,9 @@ public class DatastoreImpl implements Datastore {
 		}
 
 	}
+
+  @Override
+  public TaskLock createTaskLock() {
+    return new TaskLockImpl();
+  }
 }

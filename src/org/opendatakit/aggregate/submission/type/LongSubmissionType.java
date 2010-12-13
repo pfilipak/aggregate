@@ -17,13 +17,11 @@
 
 package org.opendatakit.aggregate.submission.type;
 
-import org.opendatakit.aggregate.datamodel.FormDataModel;
+import org.opendatakit.aggregate.datamodel.FormElementModel;
+import org.opendatakit.aggregate.format.Row;
 import org.opendatakit.aggregate.format.element.ElementFormatter;
-import org.opendatakit.aggregate.format.element.Row;
-import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
-import org.opendatakit.common.persistence.EntityKey;
-import org.opendatakit.common.persistence.InstanceDataBase;
+import org.opendatakit.common.persistence.DynamicCommonFieldsBase;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.security.User;
 
@@ -31,6 +29,7 @@ import org.opendatakit.common.security.User;
  * Data Storage Converter for Integer Type
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
 public class LongSubmissionType extends SubmissionSingleValueBase<Long> {
@@ -40,7 +39,7 @@ public class LongSubmissionType extends SubmissionSingleValueBase<Long> {
 	 * @param propertyName
 	 *            Name of submission element
 	 */
-	public LongSubmissionType(InstanceDataBase backingObject, FormDataModel element) {
+	public LongSubmissionType(DynamicCommonFieldsBase backingObject, FormElementModel element) {
 		super(backingObject, element);
 	}
 
@@ -59,17 +58,8 @@ public class LongSubmissionType extends SubmissionSingleValueBase<Long> {
 		}
 	}
 
-	/**
-	 * Get submission field value from database entity
-	 * 
-	 * @param dbEntity
-	 *            entity to obtain value
-	 */
-	@Override
-	public void getValueFromEntity(CommonFieldsBase dbEntity,
-			String uriAssociatedRow, EntityKey topLevelTableKey,
-			Datastore datastore, User user, boolean fetchElement) {
-		Long value = dbEntity.getLongField(element.getBackingKey());
+	public void getValueFromEntity(Datastore datastore, User user) {
+		Long value = backingObject.getLongField(element.getFormDataModel().getBackingKey());
 		setValue(value);
 	}
 
@@ -81,9 +71,9 @@ public class LongSubmissionType extends SubmissionSingleValueBase<Long> {
 	 *            proper format for output
 	 */
 	@Override
-	public void formatValue(ElementFormatter elemFormatter, Row row)
+	public void formatValue(ElementFormatter elemFormatter, Row row, String ordinalValue)
 			throws ODKDatastoreException {
-		elemFormatter.formatLong(getValue(), element.getElementName(), row);
+		elemFormatter.formatLong(getValue(), element.getGroupQualifiedElementName() + ordinalValue, row);
 	}
 
 	/**
@@ -102,7 +92,7 @@ public class LongSubmissionType extends SubmissionSingleValueBase<Long> {
 
 	@Override
 	public Long getValue() {
-		return backingObject.getLongField(element.getBackingKey());
+		return backingObject.getLongField(element.getFormDataModel().getBackingKey());
 	}
 
 	/**
@@ -111,8 +101,8 @@ public class LongSubmissionType extends SubmissionSingleValueBase<Long> {
 	 * @param value
 	 *            value to set
 	 */
-	protected void setValue(Long value) {
-		backingObject.setLongField(element.getBackingKey(), (Long) value);
+	public void setValue(Long value) {
+		backingObject.setLongField(element.getFormDataModel().getBackingKey(), (Long) value);
 	}
 
 }

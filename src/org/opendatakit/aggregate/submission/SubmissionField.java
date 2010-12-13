@@ -30,10 +30,17 @@ import org.opendatakit.common.security.User;
  * 
  * @param <T>
  *  a GAE datastore type
- *
+ * @author mitchellsundt@gmail.com
+ * 
  */
 public interface SubmissionField<T> extends SubmissionValue{
   
+	public enum BlobSubmissionOutcome {
+		FILE_UNCHANGED,
+		NEW_FILE_VERSION,
+		COMPLETELY_NEW_FILE
+	};
+	
   /**
    * Returns whether submission type is constructed from a binary object
    * 
@@ -67,13 +74,13 @@ public interface SubmissionField<T> extends SubmissionValue{
    * @param submissionSetKey key of submission set that will reference the blob
    * @param contentType type of binary data (NOTE: only used for binary data)
    * @param datastore TODO
-   * @throws ODKConversionException
- * @throws ODKDatastoreException 
+   * @return the outcome of the storage attempt.  md5 hashes are used to determine file equivalence. 
+   * @throws ODKDatastoreException
    * 
    */  
-  public void setValueFromByteArray(byte[] byteArray,
+  public BlobSubmissionOutcome setValueFromByteArray(byte[] byteArray,
 		String contentType, Long contentLength, String unrootedFilePath,
 		Datastore datastore, User user)
-		throws ODKConversionException, ODKDatastoreException;
+		throws ODKDatastoreException;
   
 }

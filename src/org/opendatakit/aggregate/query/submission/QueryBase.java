@@ -17,44 +17,64 @@ package org.opendatakit.aggregate.query.submission;
 
 import java.util.List;
 
-import org.opendatakit.aggregate.datamodel.FormDefinition;
+import org.opendatakit.aggregate.datamodel.FormElementModel;
 import org.opendatakit.aggregate.exception.ODKFormNotFoundException;
 import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData;
+import org.opendatakit.aggregate.form.Form;
 import org.opendatakit.aggregate.submission.Submission;
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
 import org.opendatakit.common.persistence.Query;
+import org.opendatakit.common.persistence.Query.FilterOperation;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.security.User;
 
+/**
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
+ */
 public abstract class QueryBase {
 
   protected Query query;
   protected final Datastore ds;
   protected final User user;
-  protected final FormDefinition formDefinition;
+  protected final Form form;
   
   private boolean moreRecords;
   private int fetchLimit;
   
   private int numOfRecords;
   
-  protected QueryBase(FormDefinition formDefinition, int maxFetchLimit, Datastore datastore, User user) throws ODKFormNotFoundException {
+  protected QueryBase(Form form, int maxFetchLimit, Datastore datastore, User user) throws ODKFormNotFoundException {
     ds = datastore;
     this.user = user;
     fetchLimit = maxFetchLimit;
     numOfRecords = 0;
-    this.formDefinition = formDefinition;
+    this.form = form;
   }
-  
+
+  /**
+   * CAUTION: the attribute must be in the top-level record!
+   * 
+   * @param attribute
+   * @param op
+   * @param value
+   */
+  public void addFilter(FormElementModel attribute, FilterOperation op,
+  						Object value) {
+  	query.addFilter(attribute.getFormDataModel().getBackingKey(), op, value);
+  }
+
   public abstract List<Submission> getResultSubmissions() throws ODKIncompleteSubmissionData, ODKDatastoreException;
 
   public boolean moreRecordsAvailable() {
     return moreRecords;
   }
   
-  public final FormDefinition getFormDefinition(){
-    return formDefinition;
+  public final Form getForm(){
+    return form;
   }
   
   /**
@@ -63,25 +83,20 @@ public abstract class QueryBase {
    * 
    * @return
    *    a result table containing submission data
+ * @throws ODKDatastoreException 
    *
    * @throws ODKIncompleteSubmissionData 
    */
-  protected List<? extends CommonFieldsBase> getSubmissionEntities() {
+  protected List<? extends CommonFieldsBase> getSubmissionEntities() throws ODKDatastoreException {
 
     // retrieve submissions
     List<? extends CommonFieldsBase> submissionEntities = null;
-    try {
-      submissionEntities = query.executeQuery(fetchLimit + 1);
-      numOfRecords = submissionEntities.size();
-      if(submissionEntities.size() > fetchLimit) {
-        moreRecords = true;
-        submissionEntities.remove(fetchLimit);
-      }    
-    } catch (ODKDatastoreException e) {
-      // TODO: decide what to do
-      e.printStackTrace();
-    }
-
+    submissionEntities = query.executeQuery(fetchLimit + 1);
+    numOfRecords = submissionEntities.size();
+    if(submissionEntities.size() > fetchLimit) {
+      moreRecords = true;
+      submissionEntities.remove(fetchLimit);
+    }    
     return submissionEntities;
   }
   

@@ -13,6 +13,7 @@
  */
 package org.opendatakit.common.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -20,7 +21,10 @@ import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 
 /**
  * The Query interface defines how persistence implementations should create query functionality.
- *
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
  */
 public interface Query {
   
@@ -63,6 +67,15 @@ public interface Query {
   public void addFilter(DataField attributeName, FilterOperation op, Object value);
   
   /**
+   * Adds a filter to the query using the given attribute name, filtered by the values
+   * IN the value set.
+   * 
+   * @param attributeName
+   * @param valueSet
+   */
+  public void addValueSetFilter(DataField attributeName, Collection<?> valueSet );
+  
+  /**
    * Returns a list of entities which are the results of executing the query.
    * 
    * @param fetchLimit the maximum number of Entity objects to retrieve from the Datastore
@@ -76,12 +89,11 @@ public interface Query {
    * returned by the query.
    * 
    * @param topLevelTable definition of the relation that the topLevelAuri corresponds to.
-   * @param fetchLimit
    * @return
    * @throws ODKDatastoreException
    */
-  public Set<EntityKey> executeTopLevelKeyQuery(CommonFieldsBase topLevelTable,
-		  						int fetchLimit) throws ODKDatastoreException;
+  public Set<EntityKey> executeTopLevelKeyQuery(CommonFieldsBase topLevelTable)
+  							throws ODKDatastoreException;
 
 
   /**

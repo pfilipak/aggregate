@@ -13,15 +13,17 @@
  */
 package org.opendatakit.aggregate.datamodel;
 
-import org.opendatakit.common.persistence.InstanceDataBase;
+import org.opendatakit.common.persistence.DynamicBase;
+import org.opendatakit.common.security.User;
 
 /**
  * For use by dynamically discovered tables.  Tables that 
  * have specific structures required by Aggregate should 
  * extend InstanceDataBase.
  * <p>
- * All instance data for an xform is stored in InstanceData tables
- * specific to that xform.
+ * All instance data for an xform is stored in {@link TopLevelInstanceData}
+ * or {@link InstanceData} tables.  Each xform is stored in its own 
+ * independent set of tables, enabling easy data migration.
  * <p>
  * The xml tag for the xform's instance data field is used to name
  * the specific column that holds that tag's data value. 
@@ -55,21 +57,34 @@ import org.opendatakit.common.persistence.InstanceDataBase;
  * that the media prompts may be updated.  We support that use case.
  * 
  * @author mitchellsundt@gmail.com
- *
+ * @author wbrunette@gmail.com
+ * 
  */
-public final class InstanceData extends InstanceDataBase {
+public final class InstanceData extends DynamicBase {
 	
+	/**
+	 * Construct a relation prototype.
+	 * 
+	 * @param databaseSchema
+	 * @param tableName
+	 */
 	public InstanceData(String databaseSchema, String tableName) {
 		super(databaseSchema, tableName);
 	}
 
 	/**
-	 * Copy constructor for use by {@link #getEmptyRow(Class)}   
-	 * This does not populate any fields related to the values of this row. 
-	 *
-	 * @param d
+	 * Construct an empty entity.  Only called via {@link #getEmptyRow(User)}
+	 * 
+	 * @param ref
+	 * @param user
 	 */
-	public InstanceData(InstanceData ref) {
-		super(ref);
+	private InstanceData(InstanceData ref, User user) {
+		super(ref, user);
+	}
+
+	// Only called from within the persistence layer.
+	@Override
+	public InstanceData getEmptyRow(User user) {
+		return new InstanceData(this, user);
 	}
 }

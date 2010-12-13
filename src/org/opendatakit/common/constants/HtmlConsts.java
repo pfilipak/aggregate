@@ -23,9 +23,10 @@ import org.opendatakit.aggregate.constants.HtmlUtil;
  * HTML Constants used in ODK aggregate to create proper HTML
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
  * 
  */
-public class HtmlConsts {
+public final class HtmlConsts {
 
 	// tag brackets
 	public static final String BEGIN_OPEN_TAG = "<";
@@ -50,7 +51,10 @@ public class HtmlConsts {
 	public static final String H2 = "h2";
 	public static final String H3 = "h3";
 	public static final String P = "p";
+	public static final String PRE = "pre";
 	public static final String B = "b";
+	public static final String UL = "ul";
+	public static final String LI = "li";
 	public static final String TABLE = "table";
 	public static final String TABLE_HEADER = "th";
 	public static final String TABLE_ROW = "tr";
@@ -92,15 +96,15 @@ public class HtmlConsts {
 	/**
 	 * Constant for "text/enriched" content type for response message
 	 */
-	public static final String RESP_TYPE_ENRICHED = "text/enriched";
+	public static final String RESP_TYPE_ENRICHED = "text/enriched; charset=utf-8";
 	/**
 	 * Constant for "text/html" content type for response message
 	 */
-	public static final String RESP_TYPE_HTML = "text/html";
+	public static final String RESP_TYPE_HTML = "text/html; charset=utf-8";
 	/**
 	 * Constant for "text/plain" content type for response message
 	 */
-	public static final String RESP_TYPE_PLAIN = "text/plain";
+	public static final String RESP_TYPE_PLAIN = "text/plain; charset=utf-8";
 	/**
 	 * Constant for "image/jpeg" content type for response message
 	 */
@@ -108,11 +112,17 @@ public class HtmlConsts {
 	/**
 	 * Constant for "text/xml" content type for response message
 	 */
-	public static final String RESP_TYPE_XML = "text/xml";
+	public static final String RESP_TYPE_XML = "text/xml; charset=utf-8";
+	
+	  /**
+    * Constant for "text/csv" content type for response message
+    */
+   public static final String RESP_TYPE_CSV = "text/csv; charset=utf-8";
+
 	/**
 	 * Encoding scheme for servlets
 	 */
-	public static final String ENCODE_SCHEME = "UTF-8";
+	public static final String UTF8_ENCODE = "UTF-8";
 	// types of posts
 	public static final String MULTIPART_FORM_DATA = "multipart/form-data";
 	public static final String POST = "post";

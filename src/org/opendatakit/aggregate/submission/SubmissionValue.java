@@ -21,9 +21,8 @@ package org.opendatakit.aggregate.submission;
 
 import java.util.List;
 
+import org.opendatakit.aggregate.format.Row;
 import org.opendatakit.aggregate.format.element.ElementFormatter;
-import org.opendatakit.aggregate.format.element.Row;
-import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
 import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
@@ -35,30 +34,21 @@ import org.opendatakit.common.security.User;
  * in the datastore
  * 
  * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
  */
-public interface SubmissionValue {
-
-  /**
-   * Get Property Name
-   * 
-   * @return property name
-   */
-  public String getPropertyName();
+public interface SubmissionValue extends SubmissionElement {
 
   /**
    * Get submission field value from database entity
    * 
-   * @param dbEntity
-   *          entity to obtain value
-   * @param form
-   *          the form definition object
    * @param datastore
-   *          TODO
+   *          datastore to obtain value
+   * @param user
+   *          user requesting data
  * @throws ODKDatastoreException 
    */
-  public void getValueFromEntity(CommonFieldsBase dbEntity, String uriAssociatedRow,
-			EntityKey persistenceColocationKey, 
-			Datastore datastore, User user, boolean fetchElement)
+  public void getValueFromEntity(Datastore datastore, User user)
   		throws ODKDatastoreException;
 
   /**
@@ -85,8 +75,9 @@ public interface SubmissionValue {
    * @param elemFormatter
    *          the element formatter that will convert the value to the proper
    *          format for output
-   * @param row TODO
-   * @throws ODKDatastoreException TODO
+   * @param row container to put the formated value in
+   * @param ordinalValue expected either a blank string if top-level element(submission), or the ordinal value of the repeat 
+   * @throws ODKDatastoreException thrown if something goes wrong with the data store
    */
-  public void formatValue(ElementFormatter elemFormatter, Row row) throws ODKDatastoreException;
+  public void formatValue(ElementFormatter elemFormatter, Row row, String ordinalValue) throws ODKDatastoreException;
 }

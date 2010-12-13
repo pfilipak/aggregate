@@ -14,6 +14,7 @@
 package org.opendatakit.common.persistence.engine.mysql;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,12 +23,22 @@ import java.util.Set;
 
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.DataField;
+import org.opendatakit.common.persistence.DynamicAssociationBase;
+import org.opendatakit.common.persistence.DynamicBase;
+import org.opendatakit.common.persistence.DynamicDocumentBase;
 import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.Query;
+import org.opendatakit.common.persistence.TopLevelDynamicBase;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.security.User;
 import org.springframework.jdbc.core.RowMapper;
 
+/**
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
+ */
 public class QueryImpl implements Query {
 
 	private static final String K_SELECT = "SELECT ";
@@ -37,6 +48,8 @@ public class QueryImpl implements Query {
 	private static final String K_FROM = " FROM ";
 	private static final String K_WHERE = " WHERE ";
 	private static final String K_AND = " AND ";
+	private static final String K_IN_OPEN = " IN (";
+	private static final String K_IN_CLOSE = ")";
 	private static final String K_BIND_VALUE = " ? ";
 	private static final String K_ORDER_BY = " ORDER BY ";
 
@@ -140,6 +153,29 @@ public class QueryImpl implements Query {
 	}
 
 	@Override
+	public void addValueSetFilter(DataField attributeName, Collection<?> valueSet) {
+		if ( queryBindBuilder.length() == 0 ) {
+			queryBindBuilder.append(K_WHERE);
+		} else {
+			queryBindBuilder.append(K_AND);
+		}
+		queryBindBuilder.append(K_BQ);
+		queryBindBuilder.append(attributeName.getName());
+		queryBindBuilder.append(K_BQ);
+		queryBindBuilder.append(K_IN_OPEN);
+		boolean first = true;
+		for ( Object o : valueSet ) {
+			if ( !first ) {
+				queryBindBuilder.append(K_CS);
+			}
+			first = false;
+			queryBindBuilder.append(K_BIND_VALUE);
+			bindValues.add(o);
+		}
+		queryBindBuilder.append(K_IN_CLOSE);
+	}
+
+	@Override
 	public void addSort(DataField attributeName, Direction direction) {
 		if (querySortBuilder.length() == 0) {
 			querySortBuilder.append(K_ORDER_BY);
@@ -164,7 +200,7 @@ public class QueryImpl implements Query {
 
 		try {
 			return (List<? extends CommonFieldsBase>) dataStoreImpl
-				.getJdbcTemplate()
+				.getJdbcConnection()
 				.query(query, bindValues.toArray(), rowMapper);
 		} catch ( Exception e ) {
 			e.printStackTrace();
@@ -181,7 +217,7 @@ public class QueryImpl implements Query {
 
 		List<?> keys = null;
 		try {
-			keys = dataStoreImpl.getJdbcTemplate().queryForList(query,
+			keys = dataStoreImpl.getJdbcConnection().queryForList(query,
 				bindValues.toArray(), String.class);
 		} catch ( Exception e ) {
 			e.printStackTrace();
@@ -192,10 +228,23 @@ public class QueryImpl implements Query {
 
 	@Override
 	public Set<EntityKey> executeTopLevelKeyQuery(
-			CommonFieldsBase topLevelTable, int fetchLimit)
+			CommonFieldsBase topLevelTable)
 			throws ODKDatastoreException {
 
-		List<?> keys = executeDistinctValueForDataField(relation.topLevelAuri);
+		DataField topLevelAuri = null;
+		if ( relation instanceof TopLevelDynamicBase ) {
+			topLevelAuri = ((TopLevelDynamicBase) relation).primaryKey;
+		} else if ( relation instanceof DynamicAssociationBase ) {
+			topLevelAuri = ((DynamicAssociationBase) relation).topLevelAuri;
+		} else if ( relation instanceof DynamicDocumentBase ) {
+			topLevelAuri = ((DynamicDocumentBase) relation).topLevelAuri;
+		} else if ( relation instanceof DynamicBase ) {
+			topLevelAuri = ((DynamicBase) relation).topLevelAuri;
+		} else {
+			throw new IllegalStateException("unexpected persistence backing object type");
+		}
+
+		List<?> keys = executeDistinctValueForDataField(topLevelAuri);
 
 		Set<EntityKey> keySet = new HashSet<EntityKey>();
 		for (Object o : keys) {

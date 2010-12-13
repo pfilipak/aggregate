@@ -22,9 +22,9 @@ import java.util.List;
 
 import org.opendatakit.aggregate.constants.ServletConsts;
 import org.opendatakit.aggregate.datamodel.FormDataModel;
-import org.opendatakit.aggregate.datamodel.FormDefinition;
 import org.opendatakit.aggregate.datamodel.RefBlob;
 import org.opendatakit.aggregate.datamodel.VersionedBinaryContentRefBlob;
+import org.opendatakit.aggregate.form.FormDefinition;
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Datastore;
 import org.opendatakit.common.persistence.EntityKey;
@@ -39,7 +39,8 @@ import org.opendatakit.common.security.User;
  * Defines a submission blob that can be converted into a data store entity. 
  *
  * @author wbrunette@gmail.com
- *
+ * @author mitchellsundt@gmail.com
+ * 
  */
 public class SubmissionBlob {
   
@@ -127,7 +128,7 @@ public class SubmissionBlob {
 			  return null;
 		  }
 		  // by construction these should all have the same parent...
-		return dbBcbEntityList.get(0).getParentAuri();
+		return dbBcbEntityList.get(0).getDomAuri();
 	}
   
   public byte [] getBlob() {

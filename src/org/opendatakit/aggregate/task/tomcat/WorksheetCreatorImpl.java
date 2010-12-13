@@ -15,27 +15,59 @@
  */
 package org.opendatakit.aggregate.task.tomcat;
 
+import org.opendatakit.aggregate.constants.externalservice.ExternalServiceOption;
 import org.opendatakit.aggregate.exception.ODKExternalServiceException;
-import org.opendatakit.aggregate.externalservice.constants.ExternalServiceOption;
 import org.opendatakit.aggregate.form.Form;
-import org.opendatakit.aggregate.task.AbstractWorksheetCreatorImpl;
+import org.opendatakit.aggregate.task.WorksheetCreator;
+import org.opendatakit.aggregate.task.WorksheetCreatorWorkerImpl;
 import org.opendatakit.common.persistence.Datastore;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
 import org.opendatakit.common.security.User;
 
-public class WorksheetCreatorImpl extends AbstractWorksheetCreatorImpl {
+/**
+ * This is a singleton bean.  It cannot have any per-request state.
+ * It uses a static inner class to encapsulate the per-request state
+ * of a running background task.
+ * 
+ * @author wbrunette@gmail.com
+ * @author mitchellsundt@gmail.com
+ * 
+ */
+public class WorksheetCreatorImpl implements WorksheetCreator {
 
-  @Override
-  public final void createWorksheetTask(String appName, String serverURL, String spreadsheetName, 
-      ExternalServiceOption esType, int delay, Form form, Datastore datastore, User user) throws ODKExternalServiceException, ODKDatastoreException {
-    try {
-      Thread.sleep(delay);
-    } catch (InterruptedException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
-    
-    worksheetCreator(appName, serverURL, spreadsheetName, esType, form, datastore, user); 
-    
-  }
+	static class WorksheetCreatorRunner implements Runnable {
+		final WorksheetCreatorWorkerImpl impl;
+
+		public WorksheetCreatorRunner(String baseWebServerUrl,
+				String spreadsheetName, ExternalServiceOption esType,
+				Form form, Datastore datastore, User user) {
+			impl = new WorksheetCreatorWorkerImpl(baseWebServerUrl,
+					spreadsheetName, esType, form, datastore, user);
+		}
+
+		@Override
+		public void run() {
+			try {
+				impl.worksheetCreator();
+			} catch (Exception e) {
+				e.printStackTrace();
+				// TODO: Problem - decide what to do if an exception occurs
+			}
+		}
+	}
+
+	@Override
+	public final void createWorksheetTask(String baseWebServerUrl,
+			String spreadsheetName, ExternalServiceOption esType, int delay,
+			Form form, Datastore datastore, User user)
+			throws ODKExternalServiceException, ODKDatastoreException {
+
+		WorksheetCreatorRunner wr = new WorksheetCreatorRunner( baseWebServerUrl,
+				spreadsheetName, esType,
+				form, datastore, user );
+		System.out.println("THIS IS CREATE WORKSHEET IN TOMCAT");
+		AggregrateThreadExecutor exec = AggregrateThreadExecutor
+				.getAggregateThreadExecutor();
+		exec.execute(wr);
+	}
 }
