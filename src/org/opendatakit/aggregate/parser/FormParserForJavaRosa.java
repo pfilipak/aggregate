@@ -22,23 +22,29 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import org.javarosa.core.model.DataBinding;
 import org.javarosa.core.model.FormDef;
 import org.javarosa.core.model.SubmissionProfile;
 import org.javarosa.core.model.instance.FormInstance;
 import org.javarosa.core.model.instance.TreeElement;
+import org.javarosa.xform.parse.XFormParser;
+import org.javarosa.xform.util.IXFormBindHandler;
 import org.javarosa.xform.util.XFormUtils;
+import org.kxml2.kdom.Element;
 import org.opendatakit.aggregate.CallingContext;
 import org.opendatakit.aggregate.constants.ParserConsts;
 import org.opendatakit.aggregate.datamodel.DynamicBase;
 import org.opendatakit.aggregate.datamodel.DynamicCommonFieldsBase;
 import org.opendatakit.aggregate.datamodel.FormDataModel;
 import org.opendatakit.aggregate.datamodel.TopLevelDynamicBase;
+import org.opendatakit.aggregate.datamodel.FormDataModel.ElementType;
 import org.opendatakit.aggregate.exception.ODKConversionException;
 import org.opendatakit.aggregate.exception.ODKFormAlreadyExistsException;
 import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData;
@@ -53,6 +59,7 @@ import org.opendatakit.aggregate.submission.Submission;
 import org.opendatakit.common.constants.BasicConsts;
 import org.opendatakit.common.constants.HtmlConsts;
 import org.opendatakit.common.persistence.CommonFieldsBase;
+import org.opendatakit.common.persistence.DataField;
 import org.opendatakit.common.persistence.Datastore;
 import org.opendatakit.common.persistence.EntityKey;
 import org.opendatakit.common.persistence.Query;
@@ -69,7 +76,70 @@ import org.opendatakit.common.security.User;
  * 
  */
 public class FormParserForJavaRosa {
+	
+  private static final String NAMESPACE_ODK = "http://www.opendatakit.org/xforms";
+  
+  static Logger log = Logger.getLogger(FormParserForJavaRosa.class.getName());
+	
+  private static class XFormBindHandler implements IXFormBindHandler {
 
+	private FormParserForJavaRosa active = null;
+	
+	private void setFormParserForJavaRosa(FormParserForJavaRosa current) {
+		active = current;
+	}
+	
+	@Override
+	public void handle(Element element, DataBinding binding) {
+		String value = element.getAttributeValue(NAMESPACE_ODK, "length");
+		if ( value != null ) {
+			element.setAttribute(NAMESPACE_ODK, "length", null);
+		}
+		
+		log.info("Calling handle found value " + ((value == null) ? "null" : value));
+
+		if ( value != null ) {
+			Integer iValue = Integer.valueOf(value);
+			active.setNodesetStringLength(element.getAttributeValue(null, "nodeset"), iValue);
+		}
+	}
+
+	@Override
+	public void init() {
+		log.info("Calling init");
+	}
+
+	@Override
+	public void postProcess(FormDef arg0) {
+		log.info("Calling postProcess");
+	}
+	  
+  }
+  
+  private static final XFormBindHandler handler;
+  
+  static {
+	  handler = new XFormBindHandler();
+	  XFormParser.registerBindHandler(handler);
+  }
+
+  private static synchronized final FormDef parseFormDefinition(String xml, FormParserForJavaRosa parser) throws ODKIncompleteSubmissionData {
+	    String strippedXML = JRHelperUtil.removeNonJavaRosaCompliantTags(xml);
+
+	    handler.setFormParserForJavaRosa(parser);
+	    
+	    FormDef formDef = null;
+	    try {
+	      formDef = XFormUtils.getFormFromInputStream(new ByteArrayInputStream(strippedXML.getBytes()));
+	    } catch (Exception e) {
+	      throw new ODKIncompleteSubmissionData(e, Reason.BAD_JR_PARSE);
+	    } finally {
+	      handler.setFormParserForJavaRosa(null);
+	    }
+	    
+	    return formDef;
+  }
+  
   /**
    * The ODK Id that uniquely identifies the form
    */
@@ -85,8 +155,33 @@ public class FormParserForJavaRosa {
    * The XForm definition in XML
    */
   private final String xml;
-
+  private final Map<String,Integer> stringLengths = new HashMap<String,Integer>();
+  private final Map<FormDataModel,Integer> fieldLengths = new HashMap<FormDataModel,Integer>();
+  
   private final CallingContext cc;
+  
+  private void setNodesetStringLength(String nodeset, Integer length) {
+	  stringLengths.put(nodeset, length);
+  }
+  
+  private Integer getNodesetStringLength(TreeElement e) {
+	  List<String> path = new ArrayList<String>();
+	  while ( e != null && e.getName() != null ) {
+		  path.add(e.getName());
+		  e = e.getParent();
+	  }
+	  Collections.reverse(path);
+	  
+      StringBuilder b = new StringBuilder();
+	  for ( String s : path ) {
+		b.append("/");
+		b.append(s);
+	  }
+	
+	  String nodeset = b.toString();
+	  Integer len = stringLengths.get(nodeset);
+	  return len;
+  }
   
   /**
    * Extract the form id, version and uiVersion.
@@ -145,14 +240,7 @@ public class FormParserForJavaRosa {
     }
 
     xml = inputXml;
-    String strippedXML = JRHelperUtil.removeNonJavaRosaCompliantTags(xml);
-
-    FormDef formDef;
-    try {
-      formDef = XFormUtils.getFormFromInputStream(new ByteArrayInputStream(strippedXML.getBytes()));
-    } catch (Exception e) {
-      throw new ODKIncompleteSubmissionData(e, Reason.BAD_JR_PARSE);
-    }
+    FormDef formDef = parseFormDefinition(xml, this);
 
     if (formDef == null) {
         throw new ODKIncompleteSubmissionData("Javarosa failed to construct a FormDef.  Is this an XForm definition?", Reason.BAD_JR_PARSE);
@@ -275,7 +363,7 @@ public class FormParserForJavaRosa {
     		  title, persistenceStoreFormId, formDef);
   }
   
-  enum AuxType { NONE, VBN, VBN_REF, REF_BLOB, GEO_LAT, GEO_LNG, GEO_ALT, GEO_ACC, LONG_STRING_REF, REF_TEXT };
+  enum AuxType { NONE, BC_REF, REF_BLOB, GEO_LAT, GEO_LNG, GEO_ALT, GEO_ACC, LONG_STRING_REF, REF_TEXT };
   
   private String generatePhantomKey( String uriSubmissionFormModel ) {
 	  return String.format("elem+%1$s(%2$08d-phantom:%3$08d)", uriSubmissionFormModel,
@@ -314,7 +402,10 @@ public class FormParserForJavaRosa {
     boolean sameXForm = FormInfo.setXFormDefinition( formInfo, 
     					rootElementDefn.modelVersion, rootElementDefn.uiVersion,
     					title, xmlBytes, cc );
-
+    
+    // we will have thrown an exception above if the form file already exists and
+    // the form file presented is not exactly identical to the one on record.
+    
     FormInfo.setFormDescription( formInfo, null, title, null, null, cc);
 
     Set<Map.Entry<String,MultiPartFormItem>> fileSet = uploadedFormItems.getFileNameEntrySet();
@@ -480,6 +571,16 @@ public class FormParserForJavaRosa {
 		      for (CommonFieldsBase tbl : fd.getBackingTableSet()) {
 		
 		        try {
+		        	// patch up tbl with desired lengths of string fields...
+		        	for ( FormDataModel m : fdmList ) {
+		        		if ( m.getElementType().equals(ElementType.STRING) ) {
+		        			DataField f = m.getBackingKey();
+		        			Integer i = fieldLengths.get(m);
+		        			if ( f != null && i != null ) {
+		        				f.setMaxCharLen(new Long(i));
+		        			}
+		        		}
+		        	}
 		        	ds.assertRelation(tbl, user);
 		        	createdRelations.add(tbl);
 		        } catch (Exception e1) {
@@ -953,42 +1054,33 @@ public class FormParserForJavaRosa {
     d.setStringField(fdm.persistAsColumn, persistAsColumn);
     d.setStringField(fdm.persistAsTable, persistAsTable);
     d.setStringField(fdm.persistAsSchema, fdm.getSchemaName());
+    
+    if ( et.equals(ElementType.STRING) ) {
+    	// track the preferred string lengths of the string fields
+    	Integer len = getNodesetStringLength(treeElement);
+    	if ( len != null ) {
+    		fieldLengths.put(d, len);
+    	}
+    }
 
     // and patch up the tree elements that have multiple fields...
     switch (et) {
     case BINARY:
-      // binary elements have three additional tables associated with them
-      // -- the _VBN, _REF and _BLB tables (in addition to _BIN above).
-      persistAsTable = opaque.getTableName(fdm.getSchemaName(), tablePrefix, nrGroupPrefix,
-          treeElement.getName() + "_VBN");
-
-      // record for VersionedBinaryContent..
-      d = ds.createEntityUsingRelation(fdm, user);
-	  setPrimaryKey( d, fdmSubmissionUri, AuxType.VBN );
-      dmList.add(d);
-      final String vbnURI = d.getUri();
-      d.setOrdinalNumber(1L);
-      d.setUriSubmissionDataModel(k.getKey());
-      d.setParentUriFormDataModel(groupURI);
-      d.setStringField(fdm.elementName, treeElement.getName());
-      d.setStringField(fdm.elementType, FormDataModel.ElementType.VERSIONED_BINARY.toString());
-      d.setStringField(fdm.persistAsColumn, null);
-      d.setStringField(fdm.persistAsTable, persistAsTable);
-      d.setStringField(fdm.persistAsSchema, fdm.getSchemaName());
-
+      // binary elements have two additional tables associated with them
+      // -- the _REF and _BLB tables (in addition to _BIN above).
       persistAsTable = opaque.getTableName(fdm.getSchemaName(), tablePrefix, nrGroupPrefix,
           treeElement.getName() + "_REF");
 
       // record for VersionedBinaryContentRefBlob..
       d = ds.createEntityUsingRelation(fdm, user);
-	  setPrimaryKey( d, fdmSubmissionUri, AuxType.VBN_REF );
+	  setPrimaryKey( d, fdmSubmissionUri, AuxType.BC_REF );
 	  dmList.add(d);
       final String bcbURI = d.getUri();
       d.setOrdinalNumber(1L);
       d.setUriSubmissionDataModel(k.getKey());
-      d.setParentUriFormDataModel(vbnURI);
+      d.setParentUriFormDataModel(groupURI);
       d.setStringField(fdm.elementName, treeElement.getName());
-      d.setStringField(fdm.elementType, FormDataModel.ElementType.VERSIONED_BINARY_CONTENT_REF_BLOB
+      d.setStringField(fdm.elementType, FormDataModel.ElementType.BINARY_CONTENT_REF_BLOB
           .toString());
       d.setStringField(fdm.persistAsColumn, null);
       d.setStringField(fdm.persistAsTable, persistAsTable);
