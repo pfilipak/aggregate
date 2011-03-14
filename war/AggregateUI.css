@@ -1,0 +1,24 @@
+body, table td, select {
+  font-family: Arial Unicode MS, Arial, sans-serif;
+  font-size: small;
+}
+body {
+  color: black;
+  margin: 0px;
+  border: 0px;
+  padding: 0px;
+  background: white;
+  direction: ltr;
+}
+a, a:visited, a:hover {
+  color: #0000AA;
+}
+.gwt-PopupPanel {
+	padding: 3px;
+	border: 2px solid #777984;
+	background: url("images/mostly_opaque.png");
+}
+#filters_data,
+#form_and_goals_panel {
+	border-collapse: collapse;
+}
