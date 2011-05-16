@@ -1,0 +1,243 @@
+Configuring your Build Environment
+----------------------------------
+
+The build tree relies on Maven 3 for executing unit tests and 
+integration tests across the 3 platforms.  The source tree is
+the top level project within Maven.  The directories underneath
+are Eclipse projects and/or Maven sub-projects.  
+
+=====================
+Minimal Eclipse Setup
+---------------------
+
+For executing only in Eclipse with the bare minimum, you need the 
+odk-gae-settings project and the eclipse-aggregate-gae 
+project.  These should not require any Maven setup.
+
+Skip to the next section if you want a fully configured development environment.
+
+The steps required are:
+
+(0) Install the latest Java 6 SDK
+
+(1) Install Eclipse 3.6.2 or higher.  This workspace WILL NOT work with 
+    Eclipse 3.5.2 and earlier.
+
+(2) Install Google Eclipse Plugin with App Engine SDK and Google Web Toolkit SDK.
+
+(3) Start Eclipse.  Choose the parent directory of the clone'd repository as your workspace.
+
+Windows / Preferences:
+
+  Google / App Engine:
+  
+    Be sure there is an App Engine 1.4.2 or higher SDK defined.
+	NOTE: 1.4.3 is broken. Don't use it.
+	The default GWT version should match that in the maven 
+	pom.xml (currently 1.4.2).
+
+  Google / Web Toolkit:
+  
+    Be sure there is a WebToolkit SDK defined 2.2.0 or higher.
+	The default GWT version should match that in the maven 
+	pom.xml (currently 2.2.0).
+
+File / Import:
+
+    Choose the directory of the clone'd repository as the directory to search
+	(this is one level below the workspace directory).
+	
+	Choose ONLY the eclipse-aggregate-gae and odk-gae-settings projects.
+
+	This should refresh and build without any errors.
+	
+(4)	Edit odk-gae-settings / common / security.properties
+
+Be sure to set the security.server.superUser to your gmail account. Save.
+
+(5) In a command window, navigate to the odk-gae-settings directory.
+
+Run on Windows:  UpdateGaeSettingsJar.bat
+Run on Mac/Linux: UpdateGaeSettingsJar.sh
+
+(6) Return to Eclipse:
+
+Refresh the eclipse-aggregate-gae project (to pick up the updated jar file).
+
+(7) Running:
+
+Select eclipse-aggregate-gae project.
+
+Run As 'Web Application'
+
+Choose index.html
+
+Double-click to open the url.  After logging on, if running with 
+the debug server, you will need to hand-edit the url to restore
+the gwt-server address.
+
+==========================================
+Full Development Environment Configuration
+------------------------------------------
+
+(1) Install Maven 3.  This will generally set up a maven repository under
+    the user's home directory:  ${HOME}/.m2/repository
+
+(2) Install Eclipse 3.6.2 or higher.  This workspace WILL NOT work with 
+    Eclipse 3.5.2 and earlier.
+
+(3) Install Google Eclipse Plugin with App Engine SDK and Google Web Toolkit SDK.
+
+(4) Optionally Install Tomcat 6.0.  
+    This is required unless you do not import or always keep closed
+    the MySQL and Postgres projects and don't use maven.
+
+(5) Optionally: Install Postgres
+
+For Postgres, run this script:
+
+create database odk_test;
+somehow: create user 'odk_test' with password 'odk_test'
+somehow: grant all rights to this user on 'odk_test'
+create schema odk_test; (in odk_test database)
+create schema odk_unit; (in odk_test database)
+
+(6) Optionally: Install MySQL
+
+(6a)
+For MySQL, run this script:
+
+UPDATE mysql.user SET Password=PASSWORD('odk_test') WHERE User='root';
+FLUSH PRIVILEGES;
+CREATE USER 'odk_test'@'localhost' IDENTIFIED BY 'odk_test';
+CREATE DATABASE odk_test;
+GRANT ALL PRIVILEGES ON odk_test.* TO 'odk_test'@'localhost' WITH GRANT OPTION;
+CREATE DATABASE odk_unit;
+GRANT ALL PRIVILEGES ON odk_unit.* TO 'odk_test'@'localhost' WITH GRANT OPTION;
+
+(6b)
+For MySQL, download and copy the MySQL Connector J jar into the Tomcat /lib
+directory (mysql-connector-java-5.1.16.jar to apache-tomcat-6.0.26/lib).
+
+
+For Maven (3) is optional; (4), (5) and (6) are required in order
+to perform a full build.
+
+----------
+
+(7) Register libraries in Maven: (this is also required for Eclipse builds)
+
+The libraries to be registered in maven are in the src/main/libs directory.
+See the readme there for the maven commands to upload those files into your
+local repository.  In some cases, these are cutting edge Google libraries that
+may no longer need to be manually installed (once they get published to maven).
+
+(8) Edit Maven's settings.xml file (this is in the .m2 directory).
+
+A minimal file is:
+
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                      http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <servers>
+	<server>
+		<id>local.gae</id>
+		<username>mitchellsundt@gmail.com</username>
+		<password></password>
+	</server>
+  </servers>
+  <profiles>
+  	<profile>
+  	  <id>gae</id>
+  	  <activation><activeByDefault/></activation>
+  	  <properties>
+	    <gae.home>\C:\\Program Files (x86)\\Google AE\\appengine-java-sdk-1.4.2</gae.home>
+		<bitrock.home>C:\Program Files (x86)\BitRock InstallBuilder Professional 7.0.5</bitrock.home>
+	  </properties>
+  	</profile>
+  </profiles>
+  <activeProfiles><activeProfile>gae</activeProfile></activeProfiles>
+</settings>
+
+If bitrock is not installed, you must disable the installer modules in the pom.xml
+
+----------
+
+(9) Start Eclipse.  Choose the parent directory of the clone'd repository as your workspace.
+
+Windows / Preferences:
+
+  Google / App Engine:
+  
+    Be sure there is an App Engine 1.4.2 or higher SDK defined.
+	NOTE: 1.4.3 is broken. Don't use it.
+	The default GWT version should match that in the maven 
+	pom.xml (currently 1.4.2).
+
+  Google / Web Toolkit:
+  
+    Be sure there is a WebToolkit SDK defined 2.2.0 or higher.
+	The default GWT version should match that in the maven 
+	pom.xml (currently 2.2.0).
+	
+  Java / Build Path / Classpath Variables:
+
+	Define a new variable, M2_REPO, pointing to the .m2/repository
+	directory, or wherever you have configured your local 
+	Maven repository to be.
+
+  Server / Runtime Environments:
+
+      Add: Apache Tomcat 6.0 and point it to the install location 
+      used in (3) earlier.  This is optional if you will not be 
+	importing or using the MySQL and Postgres builds.
+
+  File / Import:
+
+    Choose the directory of the clone'd repository as the directory to search
+	(this is one level below the workspace directory).
+	
+	Choose ONLY the eclipse-aggregate-gae and odk-gae-settings projects.
+
+	This should refresh and build without any errors.
+	
+(10)	Edit odk-gae-settings / common / security.properties
+
+Be sure to set the security.server.superUser to your gmail account. Save.
+
+(11) In a command window, navigate to the odk-gae-settings directory.
+
+Run on Windows:  UpdateGaeSettingsJar.bat
+Run on Mac/Linux: UpdateGaeSettingsJar.sh
+
+(12) Return to Eclipse:
+
+Refresh the eclipse-aggregate-gae project (to pick up the updated jar file).
+
+(13) Running:
+
+Select eclipse-aggregate-gae project.
+
+Run As 'Web Application'
+
+Choose index.html
+
+Double-click to open the url.  After logging on, if running with 
+the debug server, you will need to hand-edit the url to restore
+the gwt-server address.
+
+(14) For the non-gae projects, you will need to first build
+with maven manually.  Open a command window, browse to the 
+clone'd repository directroy. Type:
+
+mvn install
+
+This will build and install the projects, running the unit tests
+against the 3 datastores (Google BigTable, MySQL, Postgresql),
+and building the wars for the 3 platforms.
+
+(15) you can now also import the aggregate-mysql project into
+eclipse.  It can be used to export a WAR file similar to what 
+can be built with Maven.
+
