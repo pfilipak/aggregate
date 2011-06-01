@@ -27,6 +27,7 @@ import org.opendatakit.aggregate.constants.ServletConsts;
 import org.opendatakit.aggregate.constants.common.ExternalServiceOption;
 import org.opendatakit.aggregate.constants.common.FilterOperation;
 import org.opendatakit.aggregate.constants.common.UIConsts;
+import org.opendatakit.aggregate.constants.common.UIDisplayType;
 import org.opendatakit.aggregate.constants.common.Visibility;
 import org.opendatakit.aggregate.constants.externalservice.FusionTableConsts;
 import org.opendatakit.aggregate.constants.externalservice.SpreadsheetConsts;
@@ -107,7 +108,7 @@ public class GwtTester extends ServletUtilBase {
       columns.add(new ColumnFilterHeader("ColAwesome3", "", new Long(1)));
 
       filters.add(new ColumnFilter(Visibility.KEEP, columns, new Long(5)));
-      filters.add(new RowFilter(Visibility.REMOVE, new Column("Ro1Awesome", ""),
+      filters.add(new RowFilter(Visibility.REMOVE, new Column("Ro1Awesome", "", UIDisplayType.TEXT),
           FilterOperation.EQUAL, "captain1", new Long(1)));
       FilterGroup group = new FilterGroup("group100", formId, filters);
       try {

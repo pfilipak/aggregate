@@ -60,6 +60,7 @@ import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.PopupPanel;
@@ -166,7 +167,8 @@ public class AggregateUI implements EntryPoint {
 
 			public void onSuccess(SubmissionUISummary summary) {
 				clearError();
-				updateDataTable(summary);
+			  submissions = summary.getSubmissions();
+			  updateSubmissionTable(dataTable, summary);
 			}
 		};
 
@@ -185,33 +187,82 @@ public class AggregateUI implements EntryPoint {
 
 	}
 
-	public void updateDataTable(SubmissionUISummary summary) {
-		// for viz
-		headers = summary.getHeaders();
-		submissions = summary.getSubmissions();
+	/**
+	 * NOTE: This formatting function is called by several places, should not be used to update member variables
+	 * 
+	 * NEED to refactor code so that submissionSvc comes from a global context
+	 * 
+	 * @param table
+	 * @param summary
+	 */
+	public void updateSubmissionTable(FlexTable table, SubmissionUISummary summary) {
+     List<Column> tableHeaders = summary.getHeaders();
+     List<SubmissionUI> tableSubmissions = summary.getSubmissions();
 
-		int headerIndex = 0;
-		dataTable.removeAllRows();
-		dataTable.getRowFormatter().addStyleName(0, "titleBar");
-		dataTable.addStyleName("dataTable");
-		for(Column column : summary.getHeaders()) {
-			dataTable.setText(0, headerIndex++, column.getDisplayHeader());
-		}
+      int headerIndex = 0;
+      table.removeAllRows();
+      table.getRowFormatter().addStyleName(0, "titleBar");
+      table.addStyleName("dataTable");
+      for(Column column : tableHeaders) {
+         table.setText(0, headerIndex++, column.getDisplayHeader());
+      }
 
-		int i = 1;
-		for(SubmissionUI row : summary.getSubmissions()) {
-			int j = 0;
-			for(String values : row.getValues()) {
-				dataTable.setText(i, j++, values);
-			}
-			if (i % 2 == 0) {
-				dataTable.getRowFormatter().setStyleName(i, "evenTableRow");
-			}
-			i++;
-		}
-	}
-
-
+      int i = 1;
+      for(SubmissionUI row : tableSubmissions) {
+         int j = 0;
+         for(final String values : row.getValues()) {
+            switch (tableHeaders.get(j).getUiDisplayType()) {
+            case BINARY:
+               Image image = new Image(values + UIConsts.PREVIEW_SET);     
+               image.addClickHandler(new ClickHandler() {
+                  @Override
+                  public void onClick(ClickEvent event) {
+                     final PopupPanel popup = new ImagePopup(values);
+                     popup.setPopupPositionAndShow(new PopupPanel.PositionCallback() {
+                        @Override
+                        public void setPosition(int offsetWidth, int offsetHeight) {
+                           int left = ((Window.getClientWidth() - offsetWidth) / 2);
+                           int top = ((Window.getClientHeight() - offsetHeight) / 2);
+                           popup.setPopupPosition(left, top);
+                        }
+                     });
+                  }
+               });
+               
+               table.setWidget(i, j, image);
+               break;
+            case REPEAT:
+              Button repeat = new Button("View");
+              final AggregateUI tmp = this; // fix after refactoring of the function and global services
+              repeat.addClickHandler(new ClickHandler() {
+                @Override
+                public void onClick(ClickEvent event) {
+                  final PopupPanel popup = new RepeatPopup(values, submissionSvc, tmp);
+                  popup.setPopupPositionAndShow(new PopupPanel.PositionCallback() {
+                    @Override
+                    public void setPosition(int offsetWidth, int offsetHeight) {
+                      int left = ((Window.getClientWidth() - offsetWidth) / 2);
+                      int top = ((Window.getClientHeight() - offsetHeight) / 2);
+                      popup.setPopupPosition(left, top);
+                      }
+                    });
+                   }
+                });
+              
+              table.setWidget(i, j, repeat);
+              break;
+            default:
+               table.setText(i, j, values);            
+            }
+            j++;
+         }
+         if (i % 2 == 0) {
+            table.getRowFormatter().setStyleName(i, "evenTableRow");
+         }
+         i++;
+      }
+   }
+   
 	native void redirect(String url)
 	/*-{
 	        $wnd.location.replace(url);
@@ -257,6 +308,7 @@ public class AggregateUI implements EntryPoint {
 				updateTogglePane();
 			}});
 	}
+
 	/*
 	 * Creates a click handler for a main menu tab.
 	 * Defaults to the first sub-menu tab.
