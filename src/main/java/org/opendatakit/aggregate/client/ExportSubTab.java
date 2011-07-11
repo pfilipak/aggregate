@@ -14,13 +14,19 @@ public class ExportSubTab extends VerticalPanel implements SubTabInterface {
     exportTable = new ExportTable();
     add(exportTable);
   }
+
+  @Override
+  public boolean canLeave() {
+	  return true;
+  }
   
+  @Override
   public void update() {
     
     AsyncCallback<ExportSummary[]> callback = new AsyncCallback<ExportSummary[]>() {
       @Override
       public void onFailure(Throwable caught) {
-        // TODO Auto-generated method stub
+          AggregateUI.getUI().reportError(caught);
       }
 
       @Override

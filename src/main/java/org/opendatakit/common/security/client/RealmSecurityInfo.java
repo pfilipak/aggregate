@@ -33,6 +33,8 @@ public class RealmSecurityInfo implements Serializable {
   
   String basicAuthHashEncoding;
 	String realmString;
+	String superUserEmail;
+	String changeUserPasswordURL;
 	
 	public RealmSecurityInfo() {
 	}
@@ -44,6 +46,14 @@ public class RealmSecurityInfo implements Serializable {
 	public void setBasicAuthHashEncoding(String basicAuthHashEncoding) {
 		this.basicAuthHashEncoding = basicAuthHashEncoding;
 	}
+	
+	public String getSuperUserEmail() {
+		return superUserEmail;
+	}
+	
+	public void setSuperUserEmail(String superUserEmail) {
+		this.superUserEmail = superUserEmail;
+	}
 
 	public String getRealmString() {
 		return realmString;
@@ -51,5 +61,13 @@ public class RealmSecurityInfo implements Serializable {
 
 	public void setRealmString(String realmString) {
 		this.realmString = realmString;
+	}
+	
+	public void setChangeUserPasswordURL( String changeUserPasswordURL) {
+		this.changeUserPasswordURL = changeUserPasswordURL;
+	}
+	
+	public String getChangeUserPasswordURL() {
+		return changeUserPasswordURL;
 	}
 }

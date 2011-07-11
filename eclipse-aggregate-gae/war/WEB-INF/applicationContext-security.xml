@@ -13,9 +13,6 @@
 	<!--	The group and role hierarchy is maintained in the granted authority hierarchy table.  -->
 	<!--	Unauthenticated accesses possess the USER_IS_ANONYMOUS group -->
 	<!--    Authenticated accesses possess the USER_IS_AUTHENTICATED group and -->
-	<!--    will possess a group prefixed by MAILTO_ that describes their e-mail domain.  i.e., -->
-	<!-- 		gmail.com  -> MAILTO_GMAIL_COM-->
-	<!--		uw.edu  -> MAILTO_UW_EDU-->
 	<!--    If the user is registered (present in the registered users table), the user will also --> 
 	<!--  	possess the USER_IS_REGISTERED group.  -->
 	<!--    An authenticated users will also possess an AUTH_ group defining the mechanism by which -->
@@ -69,13 +66,12 @@
 		<intercept-url pattern="/index.html" access="true" />
 		<intercept-url pattern="/logout.html" access="true" />
 		<intercept-url pattern="/odk_color.png" access="true" />
-        <intercept-url pattern="/www/index.html" access="true" /> <!-- Intermediate page redirecting to access mgmt -->
 		<intercept-url pattern="/openid_login.html" access="isAnonymous()" />
 		<intercept-url pattern="/local_login.html" access="isFullyAuthenticated() and hasRole('AUTH_LOCAL')" />
 
 		<!-- grant access to various servlets -->
 		<intercept-url pattern="/formList" access="hasRole('ROLE_DATA_COLLECTOR')" />
-		<intercept-url pattern="/formXml" access="hasRole('ROLE_DATA_COLLECTOR')" />
+		<intercept-url pattern="/formXml" access="hasRole('ROLE_DATA_COLLECTOR') or hasRole('ROLE_DATA_VIEWER')" />
 		<intercept-url pattern="/submission" access="hasRole('ROLE_DATA_COLLECTOR') or hasRole('ROLE_DATA_OWNER')" />
 		<intercept-url pattern="/formUpload" access="hasRole('ROLE_DATA_OWNER')" /> <!--  NEW form upload url -->
 		<intercept-url pattern="/upload" access="hasRole('ROLE_DATA_OWNER')" /> <!--  OLD form upload url -->
@@ -90,9 +86,7 @@
 		<intercept-url pattern="/view/binaryData" access="hasRole('ROLE_DATA_VIEWER') or hasRole('ROLE_ATTACHMENT_VIEWER')" />
 		<intercept-url pattern="/view/**" access="hasRole('ROLE_DATA_VIEWER')" />
 
-		<intercept-url pattern="/admin/**" access="hasRole('ROLE_DATA_OWNER')" />
         <intercept-url pattern="/auth/**" access="hasRole('ROLE_DATA_OWNER')" />
-		<intercept-url pattern="/extern/**" access="hasRole('ROLE_DATA_OWNER')" />
 
         <intercept-url pattern="/ssl/**" access="hasRole('ROLE_SITE_ACCESS_ADMIN')" />
 
@@ -134,7 +128,6 @@
 	        <intercept-url pattern="/openid_login.html" access="REQUIRES_INSECURE_CHANNEL" />
 		    <intercept-url pattern="/ssl/**" access="${security.server.secureChannelType}"/>
             <intercept-url pattern="/local_login.html" access="${security.server.channelType}" />
-            <intercept-url pattern="/www/index.html" access="${security.server.channelType}" />
 		    <intercept-url pattern="/**" access="${security.server.channelType}"/>
 	    </filter-invocation-definition-source>                
 	  </beans:property>
@@ -400,7 +393,7 @@
 	<!--    you just need to modify the /openid_login.html to add a button to the alternate -->
 	<!--    OpenId sites.  After accepting the authentication, this provider then -->
 	<!--	determines whether the user is a registered user, using the wrappingUserDetailsService.-->
-	<!--	Finally, it adds the AUTH_OPENID and the MAILTO_domain granted authorities to the set of -->
+	<!--	Finally, it adds the AUTH_OPENID granted authority to the set of -->
 	<!--	the registered user's granted authorities (which is empty if the user is not registered). -->
 	<beans:bean id="openIdAuthenticationProvider"
 		class="org.opendatakit.common.security.spring.WrappingOpenIDAuthenticationProvider">

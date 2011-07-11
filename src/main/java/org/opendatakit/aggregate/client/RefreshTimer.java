@@ -41,7 +41,7 @@ public class RefreshTimer extends Timer {
   // inter-callback interval.  So if the computer on which the 
   // browser is running is slow, you can get a backlog of 
   // callbacks queued up.
-  private static final int REFRESH_INTERVAL = 5000; // ms
+  private static final int REFRESH_INTERVAL = 500000; // ms
   // private static final int REFRESH_INTERVAL = 100000; // ms
   
   // STALL_INTERVALS is the number of intervals of no UI
@@ -73,6 +73,40 @@ public class RefreshTimer extends Timer {
 	  isInitializing = false;
   }
   
+  public boolean canLeaveCurrentSubTab() {
+	  if(currentSubTab != null) {
+		    SubTabInterface tabPanel = null;
+		    switch (currentSubTab) {
+		    case FORMS:
+		    	tabPanel = aggregateUI.getManageNav().getSubTab(currentSubTab);
+		    	break;
+		    case FILTER:
+		        tabPanel = aggregateUI.getSubmissionNav().getSubTab(currentSubTab);
+		        break;
+		    case PUBLISH:
+		    	tabPanel = aggregateUI.getManageNav().getSubTab(currentSubTab);
+		    	break;
+		    case EXPORT:
+		    	tabPanel = aggregateUI.getSubmissionNav().getSubTab(currentSubTab);
+		    	break;
+		    case PREFERENCES:
+		        tabPanel = aggregateUI.getManageNav().getSubTab(currentSubTab);
+		        break;
+		    case PERMISSIONS:
+		    	tabPanel = aggregateUI.getManageNav().getSubTab(currentSubTab);
+		    	break;
+		    default:
+			      // should not happen
+			      GWT.log("currentSubTab (" + currentSubTab.getHashString() +
+			    		  ") has no defined action in RefreshTimer.run()");
+		    }
+		    if ( tabPanel != null ) {
+			    return tabPanel.canLeave();
+		    }
+	  }
+	  return true;
+  }
+  
   public void setCurrentSubTab(SubTabs subtab) {
     currentSubTab = subtab;
     refreshNow();
@@ -83,6 +117,8 @@ public class RefreshTimer extends Timer {
     restartTimer();
     // set the lastCompletionTime to zero
     // this bypasses the backlog check.
+    // The zero value is also used to identify
+    // when we are inside a refreshNow() call. 
     lastCompletionTime = 0L;
     // set the intervalsElapsed to -1
     // this ensures that all less 
@@ -158,6 +194,14 @@ public class RefreshTimer extends Timer {
 	      if ((intervalsElapsed % 6) == 0) {
 	        tabPanel = aggregateUI.getManageNav().getSubTab(currentSubTab);
 	        tabPanel.update();
+	      }
+	      break;
+	    case PERMISSIONS:
+	      tabPanel = aggregateUI.getManageNav().getSubTab(currentSubTab);
+	      if ( lastCompletionTime == 0L ) {
+	    	  // update this ONLY if we are forcing a refreshNow().
+	    	  // otherwise, let the entries be stale w.r.t. server.
+	    	  tabPanel.update();
 	      }
 	      break;
 	    default:

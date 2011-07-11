@@ -18,10 +18,8 @@ package org.opendatakit.common.security.client.security.admin;
 
 import java.util.ArrayList;
 
-import org.opendatakit.common.security.client.CredentialsInfo;
-import org.opendatakit.common.security.client.GrantedAuthorityInfo;
-import org.opendatakit.common.security.client.UserClassSecurityInfo;
 import org.opendatakit.common.security.client.UserSecurityInfo;
+import org.opendatakit.common.security.common.GrantedAuthorityName;
 
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
@@ -29,21 +27,8 @@ public interface SecurityAdminServiceAsync {
 
 	void getAllUsers(boolean withAuthorities, AsyncCallback<ArrayList<UserSecurityInfo>> callback);
 
-	void getUsers(GrantedAuthorityInfo auth,
-			AsyncCallback<ArrayList<UserSecurityInfo>> callback);
-
 	void setUsersAndGrantedAuthorities(String xsrfString,
 			ArrayList<UserSecurityInfo> users,
-			ArrayList<GrantedAuthorityInfo> anonGrants,
-			ArrayList<GrantedAuthorityInfo> allGroups,
+			ArrayList<GrantedAuthorityName> allGroups,
 			AsyncCallback<Void> callback);
-
-	void isSimpleConfig(AsyncCallback<Boolean> callback);
-
-	void setUserPasswords(String xsrfString,
-			ArrayList<CredentialsInfo> credentials, AsyncCallback<Void> callback);
-
-	void getUserClassPrivileges(String userClassName,
-			AsyncCallback<UserClassSecurityInfo> callback);
-
 }

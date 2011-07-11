@@ -16,22 +16,12 @@
 
 package org.opendatakit.common.security.client.security;
 
-import org.opendatakit.common.security.client.CredentialsInfo;
 import org.opendatakit.common.security.client.RealmSecurityInfo;
 import org.opendatakit.common.security.client.UserSecurityInfo;
 
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
 public interface SecurityServiceAsync {
-
-	void getUserDisplayName(AsyncCallback<String> callback);
-
-	void setUserPassword(String xsrfString, CredentialsInfo credentials,
-			AsyncCallback<Void> callback);
-
-	void isRegisteredUser(AsyncCallback<Boolean> callback);
-
-	void isAnonymousUser(AsyncCallback<Boolean> callback);
 
 	void getUserInfo(AsyncCallback<UserSecurityInfo> callback);
 

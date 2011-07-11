@@ -19,6 +19,10 @@ package org.opendatakit.common.security.client;
 import java.io.Serializable;
 import java.util.TreeSet;
 
+import org.opendatakit.common.security.common.EmailParser;
+import org.opendatakit.common.security.common.GrantedAuthorityName;
+
+
 /**
  * Heavy object comparable to User that is transportable across the GWT interfaces.
  * If requested, it provides the full set of authorizations and group memberships that
@@ -37,25 +41,27 @@ public class UserSecurityInfo implements Comparable<UserSecurityInfo>, Serializa
 
   public enum UserType implements Serializable {
 		ANONYMOUS,     // not authenticated (anonymous)
-		DAEMON,        // daemon (background) account
 		REGISTERED,    // authenticated and registered
-		AUTHENTICATED  // authenticated, but not registered
+		AUTHENTICATED  // openId authentication but not registered
 	};
-	String username;
-	String nickname;
-	String email;
+	String username; // null if email is non-null
+	String fullname; // tie-back to whatever the site admin wants to know.
+	String email; // null if username is non-null
 	UserType type;
-	TreeSet<GrantedAuthorityInfo> assignedUserGroups = new TreeSet<GrantedAuthorityInfo>();
-	TreeSet<GrantedAuthorityInfo> grantedAuthorities = new TreeSet<GrantedAuthorityInfo>();
+	TreeSet<GrantedAuthorityName> assignedUserGroups = new TreeSet<GrantedAuthorityName>();
+	TreeSet<GrantedAuthorityName> grantedAuthorities = new TreeSet<GrantedAuthorityName>();
 	
 	public UserSecurityInfo() {	
 	}
 	
-	public UserSecurityInfo(String username, String nickname, String email, UserType type) {
+	public UserSecurityInfo(String username, String fullname, String email, UserType type) {
 		this.username = username;
-		this.nickname = nickname;
+		this.fullname = fullname;
 		this.email = email;
 		this.type = type;
+		if ( (email != null && username != null) || (email == null && username == null) ) {
+			throw new IllegalArgumentException("must have either just username or just email non-null");
+		}
 	}
 	
 	public UserType getType() {
@@ -74,12 +80,12 @@ public class UserSecurityInfo implements Comparable<UserSecurityInfo>, Serializa
 		this.username = username;
 	}
 
-	public String getNickname() {
-		return nickname;
+	public String getFullName() {
+		return fullname;
 	}
 
-	public void setNickname(String nickname) {
-		this.nickname = nickname;
+	public void setFullName(String fullname) {
+		this.fullname = fullname;
 	}
 
 	public String getEmail() {
@@ -90,22 +96,30 @@ public class UserSecurityInfo implements Comparable<UserSecurityInfo>, Serializa
 		this.email = email;
 	}
 
-	public TreeSet<GrantedAuthorityInfo> getAssignedUserGroups() {
+	public String getCanonicalName() {
+		if ( username != null ) {
+			return username;
+		} else {
+			return email.substring(EmailParser.K_MAILTO.length());
+		}
+	}
+	
+	public TreeSet<GrantedAuthorityName> getAssignedUserGroups() {
 		return assignedUserGroups;
 	}
 
-	public void setAssignedUserGroups(TreeSet<GrantedAuthorityInfo> authorities) {
+	public void setAssignedUserGroups(TreeSet<GrantedAuthorityName> authorities) {
 		assignedUserGroups.clear();
 		if ( authorities != null ) {
 			assignedUserGroups.addAll(authorities);
 		}
 	}
 
-	public TreeSet<GrantedAuthorityInfo> getGrantedAuthorities() {
+	public TreeSet<GrantedAuthorityName> getGrantedAuthorities() {
 		return grantedAuthorities;
 	}
 
-	public void setGrantedAuthorities(TreeSet<GrantedAuthorityInfo> authorities) {
+	public void setGrantedAuthorities(TreeSet<GrantedAuthorityName> authorities) {
 		grantedAuthorities.clear();
 		if ( authorities != null ) {
 			grantedAuthorities.addAll(authorities);
@@ -115,17 +129,58 @@ public class UserSecurityInfo implements Comparable<UserSecurityInfo>, Serializa
 	@Override
 	public boolean equals(Object obj) {
 		UserSecurityInfo info = (UserSecurityInfo) obj;
-		return username.equals(info.username);
+		if ( username != null && info.username != null ) {
+			return username.equals(info.username);
+		}
+		if ( email != null && info.email != null ) {
+			return email.equals(info.email);
+		}
+		return false;
 	}
 
 	@Override
 	public int hashCode() {
-		return username.hashCode();
+		if ( username != null ) {
+			return 1010101 + 3*username.hashCode();
+		} else if ( email != null ){
+			return email.hashCode();
+		} else {
+			return 3;
+		}
 	}
 
 	@Override
 	public int compareTo(UserSecurityInfo o) {
-		return username.compareTo(o.username);
+		if ( username != null && o.username != null ) {
+			return username.compareTo(o.username);
+		}
+		if ( email != null && o.email != null ) {
+			return email.compareTo(o.email);
+		}
+		if ( username != null ) return -1;
+		return 1;
 	}
 	
+	private static final String UID_PREFIX = "uid:";
+	
+	/**
+	 * Simple converter of user's primary key to a display name.
+	 * The actual user record at the time of the storage is identified by the 
+	 * uriUser.  The user's display name is encoded in that as well as a 
+	 * creation timestamp.
+	 * 
+	 * @param uriUser
+	 * @return
+	 */
+	public static final String getDisplayName(String uriUser ) {
+	      String displayName;
+	      if (uriUser.startsWith(EmailParser.K_MAILTO)) {
+	        displayName = uriUser.substring(EmailParser.K_MAILTO.length());
+	      } else if (uriUser.startsWith(UID_PREFIX)) {
+	        displayName = uriUser.substring(UID_PREFIX.length(), uriUser.indexOf("|"));
+	      } else {
+	        displayName = uriUser;
+	      }
+	      return displayName;
+	}
 }
