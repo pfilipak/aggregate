@@ -17,10 +17,10 @@
     	<itFormsDirectory>${project.basedir}/../src/it/testfiles/forms</itFormsDirectory>
     	<itSubmissionsDirectory>${project.basedir}/../src/it/testfiles/submissions</itSubmissionsDirectory>
     	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<gooogle.appengine.sdk.version>1.5.0.1</gooogle.appengine.sdk.version>
+		<gooogle.appengine.sdk.version>1.5.1</gooogle.appengine.sdk.version>
 		<google.gdata.version>1.41.5</google.gdata.version>
 		<google.gwt.version>2.3.0</google.gwt.version>
-		<gwt.maven.plugin.version>2.3.0-SNAPSHOT</gwt.maven.plugin.version>
+		<gwt.maven.plugin.version>2.3.0-1</gwt.maven.plugin.version>
 		<maven.gae.plugin.version>0.8.4</maven.gae.plugin.version>
 		<maven.war.plugin.version>2.1.1</maven.war.plugin.version>
 		<maven.antrun.plugin.version>1.6</maven.antrun.plugin.version>
@@ -633,18 +633,6 @@
 								</sources>
 							</configuration>
 						</execution>
-						<execution>
-						  <id>add-integration-test-sources</id>
-						  <phase>generate-sources</phase>
-						  <goals>
-							<goal>add-test-source</goal>
-						  </goals>
-						  <configuration>
-							<sources>
-							  <source>${project.parent.basedir}/src/it/java</source>
-							</sources>
-						  </configuration>
-						</execution>
 					</executions>
 				</plugin>
 				<plugin>
@@ -812,7 +800,7 @@
 							<configuration>
 							  <target>
 								<exec executable="${mysql.client.executable}" failonerror="false">
-								  <arg line="-u root -p'${mysql.root.password}'" />
+								  <arg line="-u root -p${mysql.root.password}" />
 								  <redirector input="${scriptSourceDirectory}/mysql_teardown.sql" />
 								</exec>
 							  </target>
@@ -820,16 +808,15 @@
 						</execution>
 						<execution>
 							<!--  Makes sure we start with a clean postgres (no pre-existing database that we want to create) -->
-							<id>pre-postgres-teardown</id>
+							<id>pre-postgresql-teardown</id>
 							<goals>
 							  <goal>run</goal>
 							</goals>
 							<configuration>
 							  <target>
-								<exec executable="${postgres.client.executable}" failonerror="false">
-								  <arg value="--username=postgres" />
-								  <arg value="--file=${scriptSourceDirectory}/postgres_teardown.sql" />
-								  <inputstring value="${postgres.root.password}\n" />
+							    <exec executable="${postgres.client.executable}" failonerror="false">
+								  <env key="PGPASSWORD" value="${postgres.root.password}" />
+								  <arg line="-U postgres -a -n -w -f &quot;${scriptSourceDirectory}/postgres_teardown.sql&quot;" />
 								</exec>
 							  </target>
 							</configuration>
@@ -843,7 +830,7 @@
 							<configuration>
 							  <target>
 								<exec executable="${mysql.client.executable}" failonerror="true">
-								  <arg line="-u root -p'${mysql.root.password}'" />
+								  <arg line="-u root -p${mysql.root.password}" />
 								  <redirector input="${scriptSourceDirectory}/mysql_setup.sql" />
 								</exec>
 							  </target>
@@ -851,16 +838,15 @@
 						</execution>
 						<execution>
 							<!--  Sets up the postgres database for use in integration testing -->
-							<id>postgres-setup</id>
+							<id>postgresql-setup</id>
 							<goals>
 							  <goal>run</goal>
 							</goals>
 							<configuration>
 							  <target>
 								<exec executable="${postgres.client.executable}" failonerror="true">
-								  <arg value="--username=postgres" />
-								  <arg value="--file=${scriptSourceDirectory}/postgres_setup.sql" />
-								  <inputstring value="${postgres.root.password}\n" />
+								  <env key="PGPASSWORD" value="${postgres.root.password}" />
+								  <arg line="-U postgres -a -n -w -f &quot;${scriptSourceDirectory}/postgres_setup.sql&quot;" />
 								</exec>
 							  </target>
 							</configuration>
@@ -874,7 +860,7 @@
 							<configuration>
 							  <target>
 								<exec executable="${mysql.client.executable}" failonerror="true">
-								  <arg line="-u root -p'${mysql.root.password}'" />
+								  <arg line="-u root -p${mysql.root.password}" />
 								  <redirector input="${scriptSourceDirectory}/mysql_teardown.sql" />
 								</exec>
 							  </target>
@@ -882,16 +868,15 @@
 						</execution>
 						<execution>
 							<!--  Tears down whatever we set up in the postgres-setup execution -->
-							<id>postgres-teardown</id>
+							<id>postgresql-teardown</id>
 							<goals>
 							  <goal>run</goal>
 							</goals>
 							<configuration>
 							  <target>
 								<exec executable="${postgres.client.executable}" failonerror="true">
-								  <arg value="--username=postgres" />
-								  <arg value="--file=${scriptSourceDirectory}/postgres_teardown.sql" />
-								  <inputstring value="${postgres.root.password}\n" />
+								  <env key="PGPASSWORD" value="${postgres.root.password}" />
+								  <arg line="-U postgres -a -n -w -f &quot;${scriptSourceDirectory}/postgres_teardown.sql&quot;" />
 								</exec>
 							  </target>
 							</configuration>
@@ -1057,22 +1042,6 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-	<reporting>
-		<plugins>
-		  <plugin>
-			<groupId>org.sonatype.maven.plugin</groupId>
-			<artifactId>emma-maven-plugin</artifactId>
-			<version>1.2</version>
-			<inherited>true</inherited>
-		  </plugin>
-		  <plugin>
-			<groupId>org.apache.maven.plugins</groupId>
-			<artifactId>maven-surefire-report-plugin</artifactId>
-			<version>2.6</version>
-			<inherited>true</inherited>
-		  </plugin>
-		</plugins>
-	</reporting>
 	<ciManagement>
 		<system>hudson</system>
 		<url>opendatakit.cs.washington.edu/jenkins</url>

@@ -17,10 +17,39 @@
 package org.opendatakit.aggregate.constants.common;
 
 import java.io.Serializable;
+import java.util.Date;
 
+public class FormActionStatusTimestamp implements Serializable {
 
-public enum UIDisplayType implements Serializable {
-	TEXT,
-	BINARY,
-	REPEAT
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6347744032355543871L;
+	
+	private FormActionStatus status;
+	private Date timestamp;
+	
+	public FormActionStatusTimestamp() {
+	}
+
+	public FormActionStatusTimestamp(FormActionStatus status, Date timestamp) {
+		this.status = status;
+		this.timestamp = timestamp;
+	}
+
+	public FormActionStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(FormActionStatus status) {
+		this.status = status;
+	}
+	
+	public Date getTimestamp() {
+		return timestamp;
+	}
+	
+	public void setTimestamp(Date timestamp) {
+		this.timestamp = timestamp;
+	}
 }
