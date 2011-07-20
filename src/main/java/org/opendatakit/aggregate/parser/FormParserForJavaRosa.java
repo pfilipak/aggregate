@@ -395,22 +395,20 @@ public class FormParserForJavaRosa {
 
     Datastore ds = cc.getDatastore();
     User user = cc.getCurrentUser();
-    List<SubmissionAssociationTable> saList = SubmissionAssociationTable.findSubmissionAssociationsForXForm(submissionElementDefn, cc);
-    if ( saList.size() > 1 ) {
-		throw new IllegalStateException("Logic is not yet in place for cross-form submission sharing");
-    }
-    SubmissionAssociationTable sa;
-    if ( !saList.isEmpty() ) {
-    	sa = saList.get(0);
-    	fdmSubmissionUri = sa.getUriSubmissionDataModel();
-    	// the entry already exists...
+    
+    FormDefinition fdDefined = FormDefinition.getFormDefinition(submissionElementDefn, cc);
+    if ( fdDefined != null ) {
     	if ( !sameXForm ) {
-    		throw new ODKFormAlreadyExistsException();
+    		throw new ODKFormAlreadyExistsException("Internal error: Completely new file has pre-existing form definition");
     	}
-    	// TODO: should do a transaction around persisting the FDM we are about to generate.
-    	FormDefinition fd = FormDefinition.getFormDefinition(submissionElementDefn, cc);
-    	if ( fd != null ) return;
-    } else {
+    	return;
+    }
+
+    // we don't have an existing form definition
+    // -- create a submission association table entry mapping to what will be the model.
+    // -- then create the model and iterate on manifesting it in the database.
+    SubmissionAssociationTable sa;
+    {
     	fdmSubmissionUri = CommonFieldsBase.newUri();
         String submissionFormIdUri = CommonFieldsBase.newMD5HashUri(submissionElementDefn.formId); // key under which submission is located...
 
@@ -503,10 +501,6 @@ public class FormParserForJavaRosa {
 	      m.setPersistAsTable(tableName);
 	    }
 	
-	    for (FormDataModel m : fdmList) {
-	      m.print(System.out);
-	    }
-	
 	    /////////////////////////////////////////////
 	    // Step 3: create the backing tables...
 	    //
@@ -524,7 +518,7 @@ public class FormParserForJavaRosa {
 	    // 
 	    try {
 		    for (;;) {
-		      FormDefinition fd = new FormDefinition(submissionElementDefn, fdmList, cc);
+		      FormDefinition fd = new FormDefinition(sa, submissionElementDefn, fdmList, cc);
 		
 		      createdRelations.add(fd.getLongStringRefTextTable());
 		      createdRelations.add(fd.getRefTextTable());
@@ -580,7 +574,7 @@ public class FormParserForJavaRosa {
 		      }
 		    }
 	    } catch ( Exception e ) {
-		      FormDefinition fd = new FormDefinition(submissionElementDefn, fdmList, cc);
+		      FormDefinition fd = new FormDefinition(sa, submissionElementDefn, fdmList, cc);
 		  	
 		      for (CommonFieldsBase tbl : fd.getBackingTableSet()) {
 		    	  try {
@@ -634,6 +628,10 @@ public class FormParserForJavaRosa {
 	ds.putEntities(fdmList, user);
 	
     // TODO: if above write fails, how do we clean this up?
+	
+	// and update the complete flag to indicate that upload was fully successful.
+	sa.setIsPersistenceModelComplete(true);
+	ds.putEntity(sa, user);
   }
 
   /**
@@ -843,6 +841,12 @@ public class FormParserForJavaRosa {
 
   }
 
+  @SuppressWarnings("unused")
+  private void printTreeElementInfo(TreeElement treeElement) {
+	    System.out.println("processing te: " + treeElement.getName() + " type: " + treeElement.dataType
+	            + " repeatable: " + treeElement.repeatable);
+  }
+  
   /**
    * Used to recursively process the xform definition tree to create the form
    * data model.
@@ -865,8 +869,8 @@ public class FormParserForJavaRosa {
       final List<FormDataModel> dmList, final FormDataModel fdm, 
       String parent, int ordinal, String tablePrefix, String nrGroupPrefix, String tableName,
       TreeElement treeElement, CallingContext cc) throws ODKEntityPersistException, ODKParseException {
-    System.out.println("processing te: " + treeElement.getName() + " type: " + treeElement.dataType
-        + " repeatable: " + treeElement.repeatable);
+
+	// for debugging: printTreeElementInfo(treeElement);
 
     FormDataModel d;
 

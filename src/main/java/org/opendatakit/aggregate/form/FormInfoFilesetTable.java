@@ -43,7 +43,7 @@ public class FormInfoFilesetTable extends DynamicBase {
 			DataField.DataType.INTEGER, true);
 
 	private static final DataField IS_FILESET_COMPLETE = new DataField("IS_FILESET_COMPLETE",
-			DataField.DataType.BOOLEAN, true);
+				DataField.DataType.BOOLEAN, true);
 
 	private static final DataField IS_DOWNLOAD_ALLOWED = new DataField("IS_DOWNLOAD_ALLOWED",
 			DataField.DataType.BOOLEAN, true);
@@ -72,7 +72,7 @@ public class FormInfoFilesetTable extends DynamicBase {
 	public final DataField rootElementModelVersion;
 	public final DataField rootElementUiVersion;
 	public final DataField isFilesetComplete;
-	public final DataField isDownloadAllowed;
+ 	public final DataField isDownloadAllowed;
 
 	public static final String URI_FORM_ID_VALUE_FORM_INFO_FILESET = "aggregate.opendatakit.org:FormInfoFileset";
 
@@ -85,7 +85,7 @@ public class FormInfoFilesetTable extends DynamicBase {
 		super(databaseSchema, TABLE_NAME);
 		fieldList.add(rootElementModelVersion = new DataField(ROOT_ELEMENT_MODEL_VERSION));
 		fieldList.add(rootElementUiVersion = new DataField(ROOT_ELEMENT_UI_VERSION));
-		fieldList.add(isFilesetComplete = new DataField(IS_FILESET_COMPLETE));
+		fieldList.add(isFilesetComplete = new DataField(IS_FILESET_COMPLETE)); // not used...
 		fieldList.add(isDownloadAllowed = new DataField(IS_DOWNLOAD_ALLOWED));
 		
 		fieldValueMap.put(primaryKey, FormInfoFilesetTable.URI_FORM_ID_VALUE_FORM_INFO_FILESET);

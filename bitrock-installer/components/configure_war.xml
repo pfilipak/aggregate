@@ -25,12 +25,6 @@
                 <distributionDirectory>
                     <origin>files/mf</origin>
                 </distributionDirectory>
-                <distributionDirectory>
-                    <origin>files/generate_uuid</origin>
-                </distributionDirectory>
-                <distributionDirectory>
-                    <origin>files/qualified_hostname</origin>
-                </distributionDirectory>
                 <distributionFile>
                     <origin>files/ODKAggregate.war</origin>
                 </distributionFile>
@@ -143,7 +137,7 @@
         <createDirectory>
             <path>${temp_dir}</path>
         </createDirectory>
-        <createTimeStamp format="%Y-%m-%dT%h:%M:%s.%S%z" variable="creation.timestamp"/>
+        <createTimeStamp format="%Y-%m-%dT%H:%M:%S%z" variable="creation.timestamp"/>
         <setInstallerVariable>
             <name>settings_jar</name>
             <value>${project.shortName}-settings.jar</value>
@@ -167,20 +161,12 @@
             <value>&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</value>
         </setInstallerVariable>
     </initializationActionList>
+    <installationAbortedActionList>
+        <deleteFile>
+            <path>${temp_dir}</path>
+        </deleteFile>
+    </installationAbortedActionList>
     <postInstallationActionList>
-        <setInstallerVariableFromScriptOutput>
-            <exec>${java_executable}</exec>
-            <execArgs>QualifiedHostname</execArgs>
-            <name>hostname</name>
-            <workingDirectory>${temp_dir}/qualified_hostname</workingDirectory>
-            <ruleList>
-                <compareTextLength>
-                    <length>0</length>
-                    <logic>equals</logic>
-                    <text>${hostname}</text>
-                </compareTextLength>
-            </ruleList>
-        </setInstallerVariableFromScriptOutput>
         <actionGroup>
             <explanation>Create jdbc properties</explanation>
             <progressText>Set innocuous jdbc property for all platforms</progressText>
@@ -188,7 +174,7 @@
                 <propertiesFileSet>
                     <file>${temp_dir}/conf/${platform}/jdbc.properties</file>
                     <key>jdbc.help.about</key>
-                    <value>auto-generated on ${creation.timestamp} for ${organization_url} ${product_fullname} ${product_version}</value>
+                    <value>auto-generated on ${creation.timestamp} for ${instance_display_name} ${product_fullname} ${product_version}</value>
                 </propertiesFileSet>
             </actionList>
         </actionGroup>
@@ -228,32 +214,19 @@
         </actionGroup>
         <actionGroup>
 	<!-- Sets the security properties in security.properties
-                 based on previous user input, also generates some of
-                 the information such as UUIDs -->
+                 based on previous user input -->
 	<explanation>Set security properties</explanation>
             <progressText>Setting up security properties</progressText>
             <actionList>
                 <actionGroup>
-                    <explanation>Generate the UUID keys</explanation>
-                    <progressText>Generating UUID keys</progressText>
+                    <explanation>Setting security keys</explanation>
+                    <progressText>Setting security keys</progressText>
                     <actionList>
-                        <setInstallerVariableFromScriptOutput>
-                            <exec>${java_executable}</exec>
-                            <execArgs>GenerateUUID</execArgs>
-                            <name>security_server_siteKey</name>
-                            <workingDirectory>${temp_dir}/generate_uuid</workingDirectory>
-                        </setInstallerVariableFromScriptOutput>
                         <propertiesFileSet>
                             <file>${temp_dir}/conf/common/security.properties</file>
                             <key>security.server.siteKey</key>
                             <value>${security_server_siteKey}</value>
                         </propertiesFileSet>
-                        <setInstallerVariableFromScriptOutput>
-                            <exec>${java_executable}</exec>
-                            <execArgs>GenerateUUID</execArgs>
-                            <name>security_server_userServiceKey</name>
-                            <workingDirectory>${temp_dir}/generate_uuid</workingDirectory>
-                        </setInstallerVariableFromScriptOutput>
                         <propertiesFileSet>
                             <file>${temp_dir}/conf/common/security.properties</file>
                             <key>security.server.userServiceKey</key>
@@ -268,30 +241,57 @@
 
                          Actions are as follows:                                                        
 
-                            If the checkbox ${tomcat_authentication_should_configure} was checked, set: 
-
-                            security.server.secureChannelType=REQUIRES_SECURE_CHANNEL 
-
-                            If ${comm_sec_option} 1 is chosen:
+                            If the checkbox ${tomcat_authentication_should_configure} was not checked
+							and ${platform} is not gae, then set:
+							
                             security.server.deviceAuthentication=digest
-                            security.server.channelType=ANY_CHANNEL If
+							security.server.channelType=ANY_CHANNEL 
+							security.server.secureChannelType=ANY_CHANNEL 
 
-                            If ${comm_sec_option} 2 is chosen:
+							else 
                             security.server.deviceAuthentication=digest
-                            security.server.channelType=REQUIRES_SECURE_CHANNEL
-
-                            If ${comm_sec_option} 3 is chosen:
-                            security.server.deviceAuthentication=basic
-                            security.server.channelType=REQUIRES_SECURE_CHANNEL
-
-                            If ${comm_sec_option} 4 is chosen:
-                            security.server.deviceAuthentication=digest
-                            security.server.secureChannelType=ANY_CHANNEL 
-                            security.server.channelType=ANY_CHANNEL
-                            -->
+							security.server.channelType=REQUIRES_SECURE_CHANNEL 
+							security.server.secureChannelType=REQUIRES_SECURE_CHANNEL 
+                    -->
 	<explanation>Authentication</explanation>
                     <progressText>Setting authentication choices</progressText>
                     <actionList>
+                        <propertiesFileSet>
+                            <file>${temp_dir}/conf/common/security.properties</file>
+                            <key>security.server.deviceAuthentication</key>
+                            <value>digest</value>
+                        </propertiesFileSet>
+                        <propertiesFileSet>
+                            <file>${temp_dir}/conf/common/security.properties</file>
+                            <key>security.server.channelType</key>
+                            <ruleEvaluationLogic>or</ruleEvaluationLogic>
+                            <value>REQUIRES_SECURE_CHANNEL</value>
+                            <ruleList>
+                                <isTrue>
+                                    <value>${tomcat_authentication_should_configure}</value>
+                                </isTrue>
+                                <compareText>
+                                    <logic>equals</logic>
+                                    <text>gae</text>
+                                    <value>${platform}</value>
+                                </compareText>
+                            </ruleList>
+                        </propertiesFileSet>
+                        <propertiesFileSet>
+                            <file>${temp_dir}/conf/common/security.properties</file>
+                            <key>security.server.channelType</key>
+                            <value>ANY_CHANNEL</value>
+                            <ruleList>
+                                <isFalse>
+                                    <value>${tomcat_authentication_should_configure}</value>
+                                </isFalse>
+                                <compareText>
+                                    <logic>does_not_equal</logic>
+                                    <text>gae</text>
+                                    <value>${platform}</value>
+                                </compareText>
+                            </ruleList>
+                        </propertiesFileSet>
                         <propertiesFileSet>
                             <file>${temp_dir}/conf/common/security.properties</file>
                             <key>security.server.secureChannelType</key>
@@ -323,96 +323,6 @@
                                 </compareText>
                             </ruleList>
                         </propertiesFileSet>
-                        <if>
-                            <actionList>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.deviceAuthentication</key>
-                                    <value>digest</value>
-                                </propertiesFileSet>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.channelType</key>
-                                    <value>ANY_CHANNEL</value>
-                                </propertiesFileSet>
-                            </actionList>
-                            <conditionRuleList>
-                                <compareValues>
-                                    <logic>equals</logic>
-                                    <value1>${comm_sec_option}</value1>
-                                    <value2>1</value2>
-                                </compareValues>
-                            </conditionRuleList>
-                        </if>
-                        <if>
-                            <actionList>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.deviceAuthentication</key>
-                                    <value>digest</value>
-                                </propertiesFileSet>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.channelType</key>
-                                    <value>REQUIRES_SECURE_CHANNEL</value>
-                                </propertiesFileSet>
-                            </actionList>
-                            <conditionRuleList>
-                                <compareValues>
-                                    <logic>equals</logic>
-                                    <value1>${comm_sec_option}</value1>
-                                    <value2>2</value2>
-                                </compareValues>
-                            </conditionRuleList>
-                        </if>
-                        <if>
-                            <actionList>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.deviceAuthentication</key>
-                                    <value>basic</value>
-                                </propertiesFileSet>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.channelType</key>
-                                    <value>REQUIRES_SECURE_CHANNEL</value>
-                                </propertiesFileSet>
-                            </actionList>
-                            <conditionRuleList>
-                                <compareValues>
-                                    <logic>equals</logic>
-                                    <value1>${comm_sec_option}</value1>
-                                    <value2>3</value2>
-                                </compareValues>
-                            </conditionRuleList>
-                        </if>
-                        <if>
-                            <actionList>
-	<!-- this is the case for running GAE locally -->
-	<propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.deviceAuthentication</key>
-                                    <value>digest</value>
-                                </propertiesFileSet>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.secureChannelType</key>
-                                    <value>ANY_CHANNEL</value>
-                                </propertiesFileSet>
-                                <propertiesFileSet>
-                                    <file>${temp_dir}/conf/common/security.properties</file>
-                                    <key>security.server.channelType</key>
-                                    <value>ANY_CHANNEL</value>
-                                </propertiesFileSet>
-                            </actionList>
-                            <conditionRuleList>
-                                <compareValues>
-                                    <logic>equals</logic>
-                                    <value1>${comm_sec_option}</value1>
-                                    <value2>4</value2>
-                                </compareValues>
-                            </conditionRuleList>
-                        </if>
                     </actionList>
                 </actionGroup>
                 <propertiesFileSet>
@@ -438,12 +348,12 @@
                 <propertiesFileSet>
                     <file>${temp_dir}/conf/common/security.properties</file>
                     <key>security.server.realm.realmString</key>
-                    <value>${organization_url} ${product_fullname} realm</value>
+                    <value>${instance_display_name} ${product_fullname}</value>
                 </propertiesFileSet>
                 <propertiesFileSet>
                     <file>${temp_dir}/conf/common/security.properties</file>
                     <key>security.help.about</key>
-                    <value>auto-generated on ${creation.timestamp} for ${organization_url} ${product_fullname} ${product_version}</value>
+                    <value>auto-generated on ${creation.timestamp} for ${instance_display_name} ${product_fullname} ${product_version}</value>
                 </propertiesFileSet>
             </actionList>
         </actionGroup>
@@ -492,13 +402,6 @@
             <element>//*[local-name()="application"]</element>
             <file>${temp_dir}/cfg-war/WEB-INF/appengine-web.xml</file>
             <value>${app_id}</value>
-            <ruleList>
-                <compareValues>
-                    <logic>does_not_equal</logic>
-                    <value1>${comm_sec_option}</value1>
-                    <value2>4</value2>
-                </compareValues>
-            </ruleList>
         </xmlFileSet>
         <xmlFileSet>
             <attribute></attribute>
@@ -604,10 +507,12 @@ flush privileges;
             <path>${installdir}/create_db_and_user.sql</path>
             <progressText>Write PostgreSQL database and user creation script</progressText>
             <text>create database "${jdbc_database}";
-create schema "${jdbc_schema}";
 create user "${jdbc_username}" with unencrypted password '${jdbc_password}';
 grant all privileges on database "${jdbc_database}" to "${jdbc_username}";
 alter database "${jdbc_database}" owner to "${jdbc_username}";
+\c "${jdbc_database}";
+create schema "${jdbc_schema}";
+grant all privileges on schema "${jdbc_schema}" to "${jdbc_username}";
 </text>
             <ruleList>
                 <compareText>
@@ -623,7 +528,7 @@ alter database "${jdbc_database}" owner to "${jdbc_username}";
             <progressText>Write README</progressText>
             <text>${html_steps_begin}
 ${html_steps_begin_item}Execute the mysql (mysql.exe) commandline client using the root 
-account and password, and supply the &lt;code&gt;create_db_and_user.sql&lt;/code&gt; to it.
+account and password (the password you chose during the installation of the database), and supply the &lt;code&gt;create_db_and_user.sql&lt;/code&gt; to it.
 &lt;br/&gt;
 To open the mysql commandline client, open a cmd window (Windows), terminal window (MacOS) or
 term window (Linux) and 'cd' to the directory containing the mysql client (mysql.exe on Windows).
@@ -655,7 +560,7 @@ and you are welcome to modify and redistribute it under the GPL v2 license
 
 Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
 
-mysql&gt; &lt;font color="red"&gt;source C:/Users/user/workspace/gmysql-test/create_db_and_user.sql&lt;/font&gt;
+mysql&gt; &lt;font color="red"&gt;source ${installdir.unix}/create_db_and_user.sql&lt;/font&gt;
 Query OK, 1 row affected (0.00 sec)
 
 Query OK, 0 rows affected (0.00 sec)
@@ -675,8 +580,7 @@ Tomcat installation.
 ${html_steps_end_item}${html_steps_begin_item}
 start Apache (if not already started)
 ${html_steps_end_item}${html_steps_begin_item}
-visit &lt;a href="http://${host_port}/ODKAggregate/"&gt;http://${host_port}/ODKAggregate/&lt;/a&gt; to complete configuring the
-access rights for ODK Aggregate.
+visit &lt;a href="http://${host_port}/ODKAggregate/"&gt;http://${host_port}/ODKAggregate/&lt;/a&gt; and go to the Management / Permissions tab to complete configuring the access rights for ODK Aggregate. NOTE: It may take a few moments for the Apache Tomcat server to detect the ODKAggregate.war; if you get a 404 error, wait a few moments then refresh your browser.
 ${html_steps_end_item}&lt;/ol&gt;&lt;p&gt;
 If you want ODKAggregate to be reached at just &lt;code&gt;http://${host_port}/&lt;/code&gt;, you can
 rename it to ROOT.war before copying it to the &lt;code&gt;${platform_path_separator}webapps&lt;/code&gt; directory.
@@ -695,10 +599,48 @@ ${html_steps_end}</text>
             <progressText>Write README</progressText>
             <text>${html_steps_begin}
 ${html_steps_begin_item}Execute the Postgres SQL shell (psql) commandline client using the
-root account and password, and supply the &lt;code&gt;create_db_and_user.sql&lt;/code&gt; to it.
-If you have the psql shell open, type:
+postgres username and password (the password you chose during the installation of the database), and supply the &lt;code&gt;create_db_and_user.sql&lt;/code&gt; to it.
+To open the psql commandline client, open a cmd window (Windows), terminal window (MacOS) or
+term window (Linux) and 'cd' to the directory containing the psql client (psql.exe on Windows).
+Then, please type:
 &lt;pre&gt;
-\i "${installdir}${platform_path_separator}create_db_and_user.sql"
+psql --username postgres
+&lt;/pre&gt;
+And enter the PostgreSQL server password.  You will then be within the psql commandline client.  You should see a 'postgres=#' prompt. Type:
+&lt;pre&gt;
+\cd ${installdir.dos.unix}
+\i create_db_and_user.sql
+\q
+&lt;/pre&gt;
+Here is what this looks like on Windows, with what you must type in &lt;font color="red"&gt;red&lt;/font&gt;:
+&lt;pre&gt;
+Microsoft Windows [Version 6.1.7600]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Windows\System32&gt;&lt;font color="red"&gt;cd "\Program Files\PostgreSQL\9.0\bin"&lt;/font&gt;
+
+C:\Program Files\PostgreSQL\9.0\bin&gt;&lt;font color="red"&gt;psql.exe --username postgres&lt;/font&gt;
+Password for user postgres:&lt;font color="red"&gt;*******&lt;/font&gt;
+psql (9.0.4)
+WARNING: Console code page (437) differs from Windows code page (1252)
+         8-bit characters might no work correctly. See psql reference
+		 page "Notes for Windows users" for details.
+Type "help" for help.
+
+postgres=# &lt;font color="red"&gt;\cd ${installdir.dos.unix}&lt;/font&gt;
+postgres=# &lt;font color="red"&gt;\i create_db_and_user.sql&lt;/font&gt;
+CREATE DATABASE
+CREATE ROLE
+GRANT
+ALTER DATABASE
+WARNING: Console code page (437) differs from Windows code page (1252)
+         8-bit characters might no work correctly. See psql reference
+		 page "Notes for Windows users" for details.
+You are now connected to database "odk_prod".
+CREATE SCHEMA
+GRANT
+odk_prod=# &lt;font color="red"&gt;\q&lt;/font&gt;
+C:\Program Files\PostgreSQL\9.0\bin&gt;
 &lt;/pre&gt;
 ${html_steps_end_item}${html_steps_begin_item}
 copy the &lt;code&gt;ODKAggregate.war&lt;/code&gt; to the &lt;code&gt;${platform_path_separator}webapps&lt;/code&gt; directory of the Apache
@@ -706,8 +648,7 @@ Tomcat installation.
 ${html_steps_end_item}${html_steps_begin_item}
 start Apache (if not already started)
 ${html_steps_end_item}${html_steps_begin_item}
-visit &lt;a href="http://${host_port}/ODKAggregate/"&gt;http://${host_port}/ODKAggregate/&lt;/a&gt; to complete configuring the
-access rights for ODK Aggregate.
+visit &lt;a href="http://${host_port}/ODKAggregate/"&gt;http://${host_port}/ODKAggregate/&lt;/a&gt; and go to the Management / Permissions tab to complete configuring the access rights for ODK Aggregate. NOTE: It may take a few moments for the Apache Tomcat server to detect the ODKAggregate.war; if you get a 404 error, wait a few moments then refresh your browser.
 ${html_steps_end_item}&lt;/ol&gt;&lt;p&gt;
 If you want ODKAggregate to be reached at just &lt;code&gt;http://${host_port}/&lt;/code&gt;, you can
 rename it to ROOT.war before copying it to the &lt;code&gt;${platform_path_separator}webapps&lt;/code&gt; directory.
@@ -787,18 +728,4 @@ access rights for ODK Aggregate.${html_steps_end_item}
             <path>${temp_dir}</path>
         </deleteFile>
     </postInstallationActionList>
-    <preInstallationActionList>
-        <autodetectJava>
-            <customErrorMessage>You must have a Java 1.6 JRE installed.  Go to http://www.java.com/getjava/index.jsp</customErrorMessage>
-            <promptUser>0</promptUser>
-            <validVersionList>
-                <validVersion>
-                    <maxVersion></maxVersion>
-                    <minVersion>1.6</minVersion>
-                    <requireJDK>0</requireJDK>
-                    <vendor></vendor>
-                </validVersion>
-            </validVersionList>
-        </autodetectJava>
-    </preInstallationActionList>
 </component>

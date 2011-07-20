@@ -87,7 +87,7 @@ public class FormUploadServlet extends ServletUtilBase {
 "	  If the form definition file is named \"<code>My Form.xml</code>\" then the media folder should" +
 "	  be named \"<code>My Form-media</code>\". Please use the form below to upload the form definition" + 
 "	  file and the contents of the media folder, if any, into ODK Aggregate.</p>" +
-"	  <p>On ODK Collect 1.1.6 and higher, the file named \"<code>form_logo.png</code>\"," + 
+"	  <p>On ODK Collect 1.1.7 and higher, the file named \"<code>form_logo.png</code>\"," + 
 "	  if present in the media folder, will be displayed as the form's logo. </p>" +
 "	  <!--[if true]><p style=\"color: red;\">For a better user experience, use Chrome, Firefox or Safari</p>" +
 "	  <!-- If you specify an empty progress div, it will be expanded with an upload progress region (non-IE) -->" +
@@ -262,6 +262,9 @@ public class FormUploadServlet extends ServletUtilBase {
         	// not complete yet...
         	form.setDownloadEnabled(false);
         	form.persist(cc);
+        } else {
+        	form.setDownloadEnabled(true);
+        	form.persist(cc);
         }
         form.printDataTree(System.out);
         bOk = true;
@@ -328,8 +331,8 @@ public class FormUploadServlet extends ServletUtilBase {
       out.write(HtmlConsts.HTML_OPEN);
       out.write(HtmlConsts.BODY_OPEN);
       out.write("Successful form upload.  Click ");
-      out.write(HtmlUtil.createHref(cc.getWebApplicationURL(AggregateHtmlServlet.ADDR), "here"));
-      out.write(" to return to forms page.");
+      out.write(HtmlUtil.createHref(cc.getWebApplicationURL(ADDR), "here"));
+      out.write(" to return to add new form page.");
       out.write(HtmlConsts.BODY_CLOSE);
       out.write(HtmlConsts.HTML_CLOSE);
     }

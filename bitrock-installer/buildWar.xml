@@ -1,7 +1,7 @@
 <project>
     <shortName>ODKAggregate</shortName>
     <fullName>ODK Aggregate</fullName>
-    <version>1.0 Beta rev. 3</version>
+    <version>1.0 Beta rev. 3 01</version>
     <licenseFile>files/LICENSE.txt</licenseFile>
     <leftImage>files/leftSide.png</leftImage>
     <logoImage>files/logo.png</logoImage>
@@ -34,9 +34,9 @@
     </customLanguageFileList>
     <finalPageActionList>
         <runProgram>
-            <program>cmd.exe</program>
-            <programArguments>/c "start /b ${installdir}\uploadAggregateToAppEngine.hta"</programArguments>
-            <progressText>Launch upload script</progressText>
+            <program>cmd</program>
+            <programArguments>/S /C start /D "${installdir}" /B .${platform_path_separator}uploadAggregateToAppEngine.hta</programArguments>
+            <progressText>Launch installation script (3-10 minutes).</progressText>
             <useMSDOSPath>0</useMSDOSPath>
             <workingDirectory>${installdir}</workingDirectory>
             <ruleList>
@@ -52,8 +52,8 @@
         </runProgram>
         <runProgram>
             <program>osascript</program>
-            <programArguments>${installdir}/uploadAggregateToAppEngine.app</programArguments>
-            <progressText>Launch upload script</progressText>
+            <programArguments>'${installdir}/uploadAggregateToAppEngine.app'</programArguments>
+            <progressText>Launch installation script (3-10 minutes).</progressText>
             <workingDirectory>${installdir}</workingDirectory>
             <ruleList>
                 <compareText>
@@ -68,8 +68,8 @@
         </runProgram>
         <runProgram>
             <program>xterm</program>
-            <programArguments>-e bash -c ${installdir}/uploadAggregateToAppEngine.sh</programArguments>
-            <progressText>Launch upload script</progressText>
+            <programArguments>-e bash -c '"${installdir}/uploadAggregateToAppEngine.sh"'</programArguments>
+            <progressText>Launch installation script (3-10 minutes).</progressText>
             <workingDirectory>${installdir}</workingDirectory>
             <ruleList>
                 <compareText>
@@ -83,9 +83,10 @@
             </ruleList>
         </runProgram>
         <runProgram>
-            <program>cmd.exe</program>
-            <programArguments>/c "start /b ${installdir}\README.html"</programArguments>
-            <progressText>Show additional deployment and configuration steps</progressText>
+            <program>cmd</program>
+            <programArguments>/S /C start /D "${installdir}" /B .${platform_path_separator}README.html</programArguments>
+            <progressText>Show additional deployment and
+configuration steps (5-10 minutes).</progressText>
             <useMSDOSPath>0</useMSDOSPath>
             <workingDirectory>${installdir}</workingDirectory>
             <ruleList>
@@ -100,14 +101,11 @@
             </ruleList>
         </runProgram>
         <actionGroup>
-            <progressText>Show additional deployment and configuration steps</progressText>
+            <progressText>Show additional deployment and
+configuration steps (5-10 minutes).</progressText>
             <actionList>
-                <urlEncode>
-                    <text>${installdir.unix}/README.html</text>
-                    <variable>readme_path</variable>
-                </urlEncode>
                 <launchBrowser>
-                    <url>file:///${readme_path}</url>
+                    <url>file:///${installdir}/README.html</url>
                 </launchBrowser>
             </actionList>
             <ruleList>
