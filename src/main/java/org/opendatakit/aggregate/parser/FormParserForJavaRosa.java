@@ -54,8 +54,9 @@ import org.opendatakit.aggregate.exception.ODKFormAlreadyExistsException;
 import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData;
 import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData.Reason;
 import org.opendatakit.aggregate.exception.ODKParseException;
-import org.opendatakit.aggregate.form.Form;
 import org.opendatakit.aggregate.form.FormDefinition;
+import org.opendatakit.aggregate.form.FormFactory;
+import org.opendatakit.aggregate.form.IForm;
 import org.opendatakit.aggregate.form.MiscTasks;
 import org.opendatakit.aggregate.form.SubmissionAssociationTable;
 import org.opendatakit.aggregate.form.XFormParameters;
@@ -90,8 +91,6 @@ public class FormParserForJavaRosa {
 			"<instance>" +
 				"<data id=\"encrypted\" >" +
 					"<meta>" +
-						"<timeStart/>" +
-						"<timeEnd/>" +
 						"<instanceID/>" +
 					"</meta>" +
                "<base64EncryptedKey/>" +
@@ -101,8 +100,6 @@ public class FormParserForJavaRosa {
 					"</media>" +
 				"</data>" +
 			"</instance>" +
-			"<bind nodeset=\"/data/meta/timeStart\" type=\"datetime\"/>" +
-			"<bind nodeset=\"/data/meta/timeEnd\" type=\"datetime\"/>" +
 			"<bind nodeset=\"/data/meta/instanceID\" type=\"string\"/>" +
          "<bind nodeset=\"/data/base64EncryptedKey\" type=\"string\"/>" +
 			"<bind nodeset=\"/data/encryptedXmlFile\" type=\"binary\"/>" +
@@ -110,8 +107,6 @@ public class FormParserForJavaRosa {
 		"</model>" +
 	"</h:head>" +
 	"<h:body>" +
-		"<input ref=\"meta/timeStart\"><label>start</label></input>" +
-		"<input ref=\"meta/timeEnd\"><label>end</label></input>" +
 		"<input ref=\"meta/instanceID\"><label>InstanceID</label></input>" +
       "<input ref=\"base64EncryptedKey\"><label>Encrypted SymmetricKey</label></input>" +
 		"<upload ref=\"encryptedXmlFile\" mediatype=\"image/*\"><label>submission</label></upload>" +
@@ -513,7 +508,7 @@ public class FormParserForJavaRosa {
     String isIncompleteFlag = uploadedFormItems.getSimpleFormField(ServletConsts.TRANSFER_IS_INCOMPLETE);
     boolean isDownloadEnabled = ( isIncompleteFlag == null || isIncompleteFlag.trim().length() == 0 );
 
-    Form formInfo = Form.createOrFetchFormId(rootElementDefn, isEncryptedForm,
+    IForm formInfo = FormFactory.createOrFetchFormId(rootElementDefn, isEncryptedForm,
     					title, xmlBytes, isDownloadEnabled, cc);
     boolean newlyCreatedXForm = formInfo.isNewlyCreated();
 
@@ -525,7 +520,7 @@ public class FormParserForJavaRosa {
 				itm.getValue(), cc);
     }
     // Determine the information about the submission...
-	formInfo.setIsComplete(true);
+	 formInfo.setIsComplete(true);
     formInfo.persist(cc);
 
     Datastore ds = cc.getDatastore();
@@ -844,8 +839,14 @@ public class FormParserForJavaRosa {
     	  if ( cleaveCount+groupSize > (3*nCol)/4) {
     		  continue; // just too big to split this way see if there is a smaller group...
     	  }
-          String newGroupTable = opaque.generateUniqueTableName(tbl.getSchemaName(), tbl.getTableName(),
-        		  				cc);
+          String newGroupTable;
+          try {
+            newGroupTable = opaque.generateUniqueTableName(tbl.getSchemaName(), tbl.getTableName(),
+            	  				cc);
+          } catch (ODKDatastoreException e) {
+            e.printStackTrace();
+            throw new IllegalStateException("unable to interrogate database");
+          }
           recursivelyReassignChildren(m, tbl, newGroupTable);
           cleaveCount += groupSize;
           // and if we have cleaved over half, (divide and conquer), retry it with the database.
@@ -867,8 +868,14 @@ public class FormParserForJavaRosa {
     // so we just need to get that, and update the entries
     // in the last half of the array.
     String phantomURI = generatePhantomKey(fdmSubmissionUri);
-    String newPhantomTableName = opaque.generateUniqueTableName(tbl.getSchemaName(), tbl.getTableName(),
-				cc);
+    String newPhantomTableName;
+    try {
+      newPhantomTableName = opaque.generateUniqueTableName(tbl.getSchemaName(), tbl.getTableName(),
+      		cc);
+    } catch (ODKDatastoreException e) {
+      e.printStackTrace();
+      throw new IllegalStateException("unable to interrogate database");
+    }
     int desiredOriginalTableColCount = (nCol / 2);
     List<FormDataModel> children = parentTable.getChildren();
     int skipCleaveCount = 0;

@@ -47,7 +47,7 @@ import org.opendatakit.aggregate.exception.ODKIncompleteSubmissionData;
 import org.opendatakit.aggregate.exception.ODKParseException;
 import org.opendatakit.aggregate.externalservice.ExternalService;
 import org.opendatakit.aggregate.externalservice.FormServiceCursor;
-import org.opendatakit.aggregate.form.Form;
+import org.opendatakit.aggregate.form.IForm;
 import org.opendatakit.aggregate.format.Row;
 import org.opendatakit.aggregate.format.element.XmlAttributeFormatter;
 import org.opendatakit.aggregate.parser.MultiPartFormData;
@@ -229,7 +229,7 @@ public class SubmissionServlet extends ServletUtilBase {
         submissionParser = new SubmissionParser(req.getInputStream(), cc);
       }
 
-      Form form = submissionParser.getForm();
+      IForm form = submissionParser.getForm();
 
       // send information to remote servers that need to be notified
       List<ExternalService> tmp = FormServiceCursor.getExternalServicesForForm(form, cc);
@@ -290,7 +290,7 @@ public class SubmissionServlet extends ServletUtilBase {
           //
           // add what could be considered the form's metadata...
           //
-          attributeRow.addFormattedValue("id=\"" + StringEscapeUtils.escapeXml(form.getFormId())
+          attributeRow.addFormattedValue("id=\"" + StringEscapeUtils.escapeXml(form.getFormId().replace(ParserConsts.FORWARD_SLASH_SUBSTITUTION, ParserConsts.FORWARD_SLASH))              
               + "\"");
           if (form.isEncryptedForm()) {
             attributeRow.addFormattedValue("encrypted=\"yes\"");

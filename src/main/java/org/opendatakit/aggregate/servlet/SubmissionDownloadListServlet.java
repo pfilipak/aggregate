@@ -29,16 +29,19 @@ import org.kxml2.kdom.Document;
 import org.kxml2.kdom.Element;
 import org.kxml2.kdom.Node;
 import org.opendatakit.aggregate.ContextFactory;
+import org.opendatakit.aggregate.constants.ParserConsts;
 import org.opendatakit.aggregate.constants.ServletConsts;
 import org.opendatakit.aggregate.datamodel.TopLevelDynamicBase;
 import org.opendatakit.aggregate.exception.ODKFormNotFoundException;
-import org.opendatakit.aggregate.form.Form;
+import org.opendatakit.aggregate.form.FormFactory;
+import org.opendatakit.aggregate.form.IForm;
 import org.opendatakit.common.persistence.CommonFieldsBase;
 import org.opendatakit.common.persistence.Query;
 import org.opendatakit.common.persistence.Query.FilterOperation;
 import org.opendatakit.common.persistence.QueryResult;
 import org.opendatakit.common.persistence.QueryResumePoint;
 import org.opendatakit.common.persistence.exception.ODKDatastoreException;
+import org.opendatakit.common.persistence.exception.ODKOverQuotaException;
 import org.opendatakit.common.utils.WebUtils;
 import org.opendatakit.common.web.CallingContext;
 import org.opendatakit.common.web.constants.BasicConsts;
@@ -113,7 +116,10 @@ public class SubmissionDownloadListServlet extends ServletUtilBase {
       errorMissingKeyParam(resp);
       return;
     }
-
+    if ( formId.contains(ParserConsts.FORWARD_SLASH) ) {
+      formId = formId.replaceAll(ParserConsts.FORWARD_SLASH, ParserConsts.FORWARD_SLASH_SUBSTITUTION);
+    }
+    
     // the cursor string
     String websafeCursorString = getParameter(req, ServletConsts.CURSOR);
     QueryResumePoint cursor = WebUtils.parseCursorParameter(websafeCursorString);
@@ -125,23 +131,32 @@ public class SubmissionDownloadListServlet extends ServletUtilBase {
       numEntries = Integer.parseInt(numEntriesString.trim());
     }
 
-    Form form;
+    IForm form;
     try {
-      form = Form.retrieveFormByFormId(formId, cc);
+      form = FormFactory.retrieveFormByFormId(formId, cc);
     } catch (ODKFormNotFoundException e) {
+      e.printStackTrace();
       odkIdNotFoundError(resp);
+      return;
+    } catch (ODKOverQuotaException e) {
+      e.printStackTrace();
+      quotaExceededError(resp);
+      return;
+    } catch (ODKDatastoreException e) {
+      e.printStackTrace();
+      datastoreError(resp);
       return;
     }
 
-    if (form.getFormDefinition() == null) {
+    if (!form.hasValidFormDefinition()) {
       errorRetreivingData(resp);
       return; // ill-formed definition
     }
 
     addOpenRosaHeaders(resp);
     try {
-      TopLevelDynamicBase tbl = (TopLevelDynamicBase) form.getFormDefinition().getTopLevelGroup()
-          .getBackingObjectPrototype();
+      TopLevelDynamicBase tbl = (TopLevelDynamicBase) form.getTopLevelGroupElement()
+          .getFormDataModel().getBackingObjectPrototype();
 
       // Query by lastUpdateDate, ordered by lastUpdateDate and secondarily by
       // uri

@@ -28,9 +28,10 @@ import org.kxml2.kdom.Document;
 import org.kxml2.kdom.Element;
 import org.kxml2.kdom.Node;
 import org.opendatakit.aggregate.constants.HtmlUtil;
+import org.opendatakit.aggregate.constants.ParserConsts;
 import org.opendatakit.aggregate.constants.ServletConsts;
 import org.opendatakit.aggregate.constants.format.XFormsTableConsts;
-import org.opendatakit.aggregate.form.Form;
+import org.opendatakit.aggregate.form.IForm;
 import org.opendatakit.aggregate.servlet.FormXmlServlet;
 import org.opendatakit.aggregate.servlet.XFormsManifestServlet;
 import org.opendatakit.common.web.constants.BasicConsts;
@@ -51,9 +52,9 @@ public class XFormsXmlTable {
   private final String manifestRequestURL;
   private final boolean verbose;
 
-  private List<Form> forms;
+  private List<IForm> forms;
 
-  public XFormsXmlTable(List<Form> formsToFormat, boolean verbose, String webServerUrl) {
+  public XFormsXmlTable(List<IForm> formsToFormat, boolean verbose, String webServerUrl) {
     this.downloadRequestURL = webServerUrl + BasicConsts.FORWARDSLASH + FormXmlServlet.ADDR;
     this.manifestRequestURL = webServerUrl + BasicConsts.FORWARDSLASH + XFormsManifestServlet.ADDR;
     this.verbose = verbose;
@@ -71,7 +72,7 @@ public class XFormsXmlTable {
     e.addChild(idx++, Node.IGNORABLE_WHITESPACE, BasicConsts.NEW_LINE);
 
     // build XML table of form information
-    for (Form form : forms) {
+    for (IForm form : forms) {
       if (!form.getDownloadEnabled())
         continue;
 
@@ -86,7 +87,7 @@ public class XFormsXmlTable {
     serializer.flush();
   }
 
-  private int generateFormXmlEntry(Document d, Element e, int idx, Form form) {
+  private int generateFormXmlEntry(Document d, Element e, int idx, IForm form) {
 
     int xfIdx = 0;
     Element xformElement = d.createElement(XML_TAG_NAMESPACE, XFormsTableConsts.XFORM_TAG);
@@ -94,7 +95,7 @@ public class XFormsXmlTable {
 
     Element formIdElement = d.createElement(XML_TAG_NAMESPACE, XFormsTableConsts.FORM_ID_TAG);
     xformElement.addChild(xfIdx++, Node.ELEMENT, formIdElement);
-    formIdElement.addChild(0, Node.TEXT, form.getFormId());
+    formIdElement.addChild(0, Node.TEXT, form.getFormId().replace(ParserConsts.FORWARD_SLASH_SUBSTITUTION, ParserConsts.FORWARD_SLASH));
     xformElement.addChild(xfIdx++, Node.IGNORABLE_WHITESPACE, BasicConsts.NEW_LINE);
 
     Element formNameElement = d.createElement(XML_TAG_NAMESPACE, XFormsTableConsts.FORM_NAME_TAG);

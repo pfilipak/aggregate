@@ -16,23 +16,17 @@
 package org.opendatakit.aggregate.task.gae;
 
 import org.opendatakit.aggregate.constants.ServletConsts;
-import org.opendatakit.aggregate.form.Form;
+import org.opendatakit.aggregate.form.IForm;
 import org.opendatakit.aggregate.submission.SubmissionKey;
 import org.opendatakit.aggregate.task.FormDelete;
 import org.opendatakit.aggregate.task.gae.servlet.FormDeleteTaskServlet;
 import org.opendatakit.common.persistence.PersistConsts;
 import org.opendatakit.common.web.CallingContext;
-import org.opendatakit.common.web.constants.BasicConsts;
-
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskOptions;
-
 
 /**
- * This is a singleton bean.  It cannot have any per-request state.
- * It uses a static inner class to encapsulate the per-request state
- * of a running background task.
+ * This is a singleton bean. It cannot have any per-request state. It uses a
+ * static inner class to encapsulate the per-request state of a running
+ * background task.
  * 
  * @author wbrunette@gmail.com
  * @author mitchellsundt@gmail.com
@@ -41,16 +35,14 @@ import com.google.appengine.api.taskqueue.TaskOptions;
 public class FormDeleteImpl implements FormDelete {
 
   @Override
-  public final void createFormDeleteTask(Form form, SubmissionKey miscTasksKey, long attemptCount,
-	      CallingContext cc) {
-    TaskOptions task = TaskOptions.Builder.withUrl(BasicConsts.FORWARDSLASH + FormDeleteTaskServlet.ADDR);
-    task.method(TaskOptions.Method.GET);
-    task.countdownMillis(PersistConsts.MIN_SETTLE_MILLISECONDS);
-    task.param(ServletConsts.FORM_ID, form.getFormId());
-    task.param(ServletConsts.MISC_TASKS_KEY, miscTasksKey.toString());
-    task.param(ServletConsts.ATTEMPT_COUNT, Long.toString(attemptCount));
-    Queue queue = QueueFactory.getDefaultQueue();
-    queue.add(task);
+  public final void createFormDeleteTask(IForm form, SubmissionKey miscTasksKey, long attemptCount,
+      CallingContext cc) {
+    TaskOptionsBuilder b = new TaskOptionsBuilder(FormDeleteTaskServlet.ADDR);
+    b.countdownMillis(PersistConsts.MAX_SETTLE_MILLISECONDS);
+    b.param(ServletConsts.FORM_ID, form.getFormId());
+    b.param(ServletConsts.MISC_TASKS_KEY, miscTasksKey.toString());
+    b.param(ServletConsts.ATTEMPT_COUNT, Long.toString(attemptCount));
+    b.enqueue();
   }
 
 }

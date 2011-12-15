@@ -15,7 +15,7 @@
  */
 package org.opendatakit.aggregate.datamodel;
 
-import org.opendatakit.aggregate.form.Form;
+import org.opendatakit.aggregate.form.IForm;
 import org.opendatakit.common.web.constants.BasicConsts;
 
 /**
@@ -38,14 +38,14 @@ public class FormElementKey {
     return formElementKey;
   }
 
-  public String userFriendlyString(Form form) {
+  public String userFriendlyString(IForm form) {
     String tmp = formElementKey;
     String formId = form.getFormId() + BasicConsts.FORWARDSLASH;
     if (tmp.startsWith(formId)) {
-      tmp = tmp.replaceFirst(formId, BasicConsts.EMPTY_STRING);
+      tmp = tmp.substring(formId.length());
       String topLevel = form.getTopLevelGroupElement().getElementName() + BasicConsts.FORWARDSLASH;
       if (tmp.startsWith(topLevel)) {
-        tmp = tmp.replaceFirst(topLevel, BasicConsts.EMPTY_STRING);
+        tmp = tmp.substring(topLevel.length());
       }
 
     }
