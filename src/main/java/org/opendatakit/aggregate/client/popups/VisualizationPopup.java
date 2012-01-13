@@ -34,6 +34,7 @@ import org.opendatakit.aggregate.client.widgets.EnumListBox;
 import org.opendatakit.aggregate.client.widgets.KmlSettingListBox;
 import org.opendatakit.aggregate.constants.common.ChartType;
 import org.opendatakit.aggregate.constants.common.GeoPointConsts;
+import org.opendatakit.aggregate.constants.common.UIConsts;
 import org.opendatakit.aggregate.constants.common.UIDisplayType;
 import org.opendatakit.common.web.constants.BasicConsts;
 import org.opendatakit.common.web.constants.HtmlConsts;
@@ -54,10 +55,10 @@ import com.google.gwt.maps.client.overlay.Marker;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.FlexTable;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.RadioButton;
 import com.google.gwt.user.client.ui.SimplePanel;
-import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.gwt.visualization.client.AbstractDataTable.ColumnType;
 import com.google.gwt.visualization.client.DataTable;
@@ -233,7 +234,8 @@ public final class VisualizationPopup extends AbstractPopupBase {
 		chartPanel.setHeight(height.toString() + RESIZE_UNITS);
 		chartPanel.setWidth(width.toString() + RESIZE_UNITS);
 
-		VerticalPanel layoutPanel = new VerticalPanel();
+		FlowPanel layoutPanel = new FlowPanel(); // vertical
+		layoutPanel.setStylePrimaryName(UIConsts.VERTICAL_FLOW_PANEL_STYLENAME);
 		layoutPanel.add(topSelectionRow);
 		layoutPanel.add(bottomSelectionRow);
 		layoutPanel.add(chartPanel);
