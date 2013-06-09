@@ -1,7 +1,22 @@
+/*
+ * Copyright (C) 2012-2013 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package org.opendatakit.aggregate.odktables.entity;
 
 import org.apache.commons.lang3.Validate;
-import org.opendatakit.aggregate.client.odktables.ScopeClient;
 import org.simpleframework.xml.Element;
 
 public class Scope {
@@ -26,7 +41,7 @@ public class Scope {
 
   /**
    * Constructs a new Scope.
-   * 
+   *
    * @param type
    *          the type of the scope. Must not be null. The empty scope may be
    *          accessed as {@link Scope#EMPTY_SCOPE}.
@@ -86,7 +101,7 @@ public class Scope {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#hashCode()
    */
   @Override
@@ -100,31 +115,28 @@ public class Scope {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#equals(java.lang.Object)
    */
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if ( obj == null ) {
+      return false;
+    }
+    if ( obj == this ) {
       return true;
-    if (obj == null)
+    }
+    if (!(obj instanceof Scope)) {
       return false;
-    if (!(obj instanceof Scope))
-      return false;
+    }
     Scope other = (Scope) obj;
-    if (type != other.type)
-      return false;
-    if (value == null) {
-      if (other.value != null)
-        return false;
-    } else if (!value.equals(other.value))
-      return false;
-    return true;
+    return (type == null ? other.type == null : type.equals(other.type))
+        && (value == null ? other.value == null : value.equals(other.value));
   }
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#toString()
    */
   @Override

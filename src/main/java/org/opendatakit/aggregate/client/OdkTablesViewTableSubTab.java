@@ -1,22 +1,30 @@
+/*
+ * Copyright (C) 2013 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package org.opendatakit.aggregate.client;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.opendatakit.aggregate.client.exception.RequestFailureException;
 import org.opendatakit.aggregate.client.odktables.TableEntryClient;
 import org.opendatakit.aggregate.client.table.OdkTablesViewTable;
-import org.opendatakit.aggregate.client.widgets.AggregateListBox;
-import org.opendatakit.aggregate.client.widgets.OdkTablesDisplayDeletedRowsCheckBox;
-import org.opendatakit.aggregate.client.widgets.TableEntryClientListBox;
 import org.opendatakit.aggregate.constants.common.UIConsts;
-import org.opendatakit.aggregate.odktables.exception.PermissionDeniedException;
-import org.opendatakit.common.persistence.client.exception.DatastoreFailureException;
-import org.opendatakit.common.security.client.exception.AccessDeniedException;
 
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
-import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
@@ -26,20 +34,20 @@ import com.google.gwt.user.client.ui.ListBox;
 /**
  * This class builds the subtab that allows for viewing the ODKTables tables
  * that are currently present in the datastore.
- * 
+ *
  * @author sudar.sam@gmail.com
- * 
+ *
  */
 public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
 
   // this is the panel with the information and the dropdown box
   // that tells you to select a table
   private FlexTable selectTablePanel;
-  
+
   /**
-   * This will be the box that lets you choose which of the tables you are 
+   * This will be the box that lets you choose which of the tables you are
    * going to view.
-   * 
+   *
    * @return
    */
   private ListBox tableBox;
@@ -69,7 +77,7 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
   public OdkTablesViewTableSubTab() {
 
     setStylePrimaryName(UIConsts.VERTICAL_FLOW_PANEL_STYLENAME);
-    
+
     // displayDeleted = false;
     currentTable = null;
 
@@ -86,7 +94,7 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
 
       public void onChange(ChangeEvent event) {
         int selectedIndex = tableBox.getSelectedIndex();
-        // Call this to clear contents while you are waiting on the 
+        // Call this to clear contents while you are waiting on the
         // response from the server.
         tableData.updateDisplay(null);
         currentTable = null;
@@ -116,7 +124,7 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
     add(tableData);
 
   }
-  
+
   /**
    * Call this to remove any currently displayed data, set the selected table
    * in the list box to zero, and generally reset this page.
@@ -140,7 +148,7 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
       public void onSuccess(List<TableEntryClient> tables) {
         AggregateUI.getUI().clearError();
 
-        addTablesToListBox(tables); 
+        addTablesToListBox(tables);
         tableBox.setItemSelected(selectedValue, true);
 
       }
@@ -156,7 +164,7 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
   /*
    * temporarily existed to display deleted rows public Boolean
    * getDisplayDeleted() { return displayDeleted; }
-   * 
+   *
    * public void setDisplayDeleted(Boolean display) { this.displayDeleted =
    * display; }
    */
@@ -208,9 +216,9 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
       add(tableData);
     }
   }
-  
+
   /**
-   * Set the table to be displayed. You have to set the it in 
+   * Set the table to be displayed. You have to set the it in
    * the selectedValue and update it. O(n), could be improved.
    * @param tableId
    */
@@ -218,7 +226,7 @@ public class OdkTablesViewTableSubTab extends AggregateSubTabBase {
     // we want to clear it first so when we switch we don't end up looking at
     // old rows as we wait for it to clear.
     tableData.updateDisplay(null);
-    boolean foundTable = false; 
+    boolean foundTable = false;
     // We want to traverse the list of tables and find the index.
     for (int i = 0; i < currentTables.size(); i++) {
       if (currentTables.get(i).getTableId().equals(tableId)) {

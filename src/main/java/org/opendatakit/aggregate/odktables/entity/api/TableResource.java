@@ -1,7 +1,21 @@
+/*
+ * Copyright (C) 2012-2013 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package org.opendatakit.aggregate.odktables.entity.api;
 
-import org.opendatakit.aggregate.client.odktables.TableEntryClient;
-import org.opendatakit.aggregate.client.odktables.TableResourceClient;
 import org.opendatakit.aggregate.odktables.entity.TableEntry;
 import org.simpleframework.xml.Default;
 import org.simpleframework.xml.DefaultType;
@@ -28,7 +42,7 @@ public class TableResource extends TableEntry {
   public String getSelfUri() {
     return this.selfUri;
   }
-  
+
   public String getDefinitionUri() {
     return this.definitionUri;
   }
@@ -52,7 +66,7 @@ public class TableResource extends TableEntry {
   public void setSelfUri(final String selfUri) {
     this.selfUri = selfUri;
   }
-  
+
   public void setDefinitionUri(final String definitionUri) {
     this.definitionUri = definitionUri;
   }
@@ -75,7 +89,7 @@ public class TableResource extends TableEntry {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#equals(java.lang.Object)
    */
   @Override
@@ -128,7 +142,7 @@ public class TableResource extends TableEntry {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#hashCode()
    */
   @Override
@@ -146,7 +160,7 @@ public class TableResource extends TableEntry {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#toString()
    */
   @Override

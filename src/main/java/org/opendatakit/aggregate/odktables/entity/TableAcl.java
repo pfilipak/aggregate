@@ -1,7 +1,21 @@
+/*
+ * Copyright (C) 2012-2013 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package org.opendatakit.aggregate.odktables.entity;
 
-import org.opendatakit.aggregate.client.odktables.TableAclClient;
-import org.opendatakit.aggregate.client.odktables.TableRoleClient;
 import org.simpleframework.xml.Element;
 import org.simpleframework.xml.Root;
 
@@ -55,7 +69,7 @@ public class TableAcl {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#hashCode()
    */
   @Override
@@ -69,31 +83,28 @@ public class TableAcl {
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#equals(java.lang.Object)
    */
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if ( obj == null ) {
+      return false;
+    }
+    if ( obj == this ) {
       return true;
-    if (obj == null)
+    }
+    if (!(obj instanceof TableAcl)) {
       return false;
-    if (!(obj instanceof TableAcl))
-      return false;
+    }
     TableAcl other = (TableAcl) obj;
-    if (role != other.role)
-      return false;
-    if (scope == null) {
-      if (other.scope != null)
-        return false;
-    } else if (!scope.equals(other.scope))
-      return false;
-    return true;
+    return (role == null ? other.role == null : role.equals(other.role))
+        && (scope == null ? other.scope == null : scope.equals(other.scope));
   }
 
   /*
    * (non-Javadoc)
-   * 
+   *
    * @see java.lang.Object#toString()
    */
   @Override

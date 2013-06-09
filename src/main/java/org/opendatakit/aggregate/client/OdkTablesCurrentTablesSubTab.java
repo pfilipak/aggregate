@@ -1,37 +1,46 @@
+/*
+ * Copyright (C) 2013 University of Washington
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package org.opendatakit.aggregate.client;
 
 import java.util.List;
 
-import org.opendatakit.aggregate.client.exception.RequestFailureException;
 import org.opendatakit.aggregate.client.odktables.TableEntryClient;
 import org.opendatakit.aggregate.client.table.OdkTablesTableList;
-import org.opendatakit.aggregate.client.widgets.OdkTablesAddTableButton;
 import org.opendatakit.aggregate.client.widgets.ServletPopupButton;
 import org.opendatakit.aggregate.constants.common.UIConsts;
-import org.opendatakit.aggregate.odktables.exception.PermissionDeniedException;
-import org.opendatakit.common.persistence.client.exception.DatastoreFailureException;
-import org.opendatakit.common.security.client.exception.AccessDeniedException;
 
-import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
-import com.google.gwt.user.client.ui.FlexTable;
 
 /**
  * This is the subtab that will house the display of the current ODK Tables
  * tables in the datastore. <br>
  * Based on OdkTablesAdminSubTab.
- * 
+ *
  * @author sudar.sam@gmail.com
- * 
+ *
  */
 public class OdkTablesCurrentTablesSubTab extends AggregateSubTabBase {
 
   private static final String IMPORT_TABLE_TXT = "Import table from CSV";
-  private static final String IMPORT_TABLE_TOOLTIP_TEXT = 
+  private static final String IMPORT_TABLE_TOOLTIP_TEXT =
       "Create a new  table by importing a CSV";
-  private static final String IMPORT_TABLE_BALLOON_TXT = 
+  private static final String IMPORT_TABLE_BALLOON_TXT =
       "Create a new table by importing from a CSV";
-  private static final String IMPORT_TABLE_BUTTON_TXT = 
+  private static final String IMPORT_TABLE_BUTTON_TXT =
       "<img src =\"images/yellow_plus.png\" />Import Table From CSV";
 
   private OdkTablesTableList tableList;
@@ -51,8 +60,8 @@ public class OdkTablesCurrentTablesSubTab extends AggregateSubTabBase {
 
     //addButton = new OdkTablesAddTableButton();
 
-    importTableButton = new ServletPopupButton(IMPORT_TABLE_BUTTON_TXT, 
-        IMPORT_TABLE_TXT, UIConsts.UPLOAD_TABLE_FROM_CSV_SERVLET_ADDR, this, 
+    importTableButton = new ServletPopupButton(IMPORT_TABLE_BUTTON_TXT,
+        IMPORT_TABLE_TXT, UIConsts.UPLOAD_TABLE_FROM_CSV_SERVLET_ADDR, this,
         IMPORT_TABLE_TOOLTIP_TEXT, IMPORT_TABLE_BALLOON_TXT);
 
     add(importTableButton);
