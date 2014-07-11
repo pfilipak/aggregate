@@ -1,0 +1,435 @@
+Configuring your Build Environment
+----------------------------------
+
+The build tree relies on Maven 3 for executing unit tests and 
+integration tests across the 3 platforms (GAE, MySQL, PostgreSQL).
+The source tree is in the top level project within Maven.  The 
+directories underneath are Eclipse projects and/or Maven 
+sub-projects.  
+
+If you're a Maven expert and have suggestions about the Maven 
+project tree, please contact mitchellsundt@gmail.com
+
+=====================
+Minimal Eclipse Setup
+---------------------
+
+For executing only in Eclipse with the bare minimum, you need the 
+odk-gae-settings project and the eclipse-aggregate-gae 
+project.  These should not require any Maven setup.
+
+Skip to the next section if you want a fully configured development environment.
+
+The steps required are:
+
+(0) Install the latest Java 6 SDK
+
+(1a) Install Eclipse 3.7.2 or higher.  This workspace WILL NOT work with 
+    Eclipse 3.5.2 and earlier.
+
+(1b) Increase the start-up memory sizes for the Eclipse workspace as detailed 
+below. The GAE database consumes huge amounts of space in the JVM and the GAE
+environment runs two independent copies of the server code to mimic the existence
+of a foreground and background process. This all requires very large perm space
+and max memory for the underlying Java environments.
+
+To do this, edit the eclipse.ini file, located in the
+eclipse directory (e.g., C:\Users\User\eclipse\eclipse.ini).  This is 
+in the same directory as the eclipse.exe.
+
+This is my eclipse.ini:
+------------------------------start-------------------
+-startup
+plugins/org.eclipse.equinox.launcher_1.2.0.v20110502.jar
+--launcher.library
+plugins/org.eclipse.equinox.launcher.win32.win32.x86_64_1.1.100.v20110502
+-product
+org.eclipse.epp.package.jee.product
+--launcher.defaultAction
+openFile
+--launcher.XXMaxPermSize
+1536M
+-showsplash
+org.eclipse.platform
+--launcher.XXMaxPermSize
+1536m
+--launcher.defaultAction
+openFile
+-vmargs
+-Dosgi.requiredJavaVersion=1.6
+-Xms100m
+-Xmx2048m
+-startup
+------------------------------end----------------------
+
+(2) Install Google Eclipse Plugin with App Engine SDK and Google Web Toolkit SDK.
+
+(3) Start Eclipse.  Choose the parent directory of the clone'd repository as your workspace.
+
+Windows / Preferences:
+
+  Google / App Engine:
+  
+    Be sure there is an App Engine 1.9.0 or higher SDK defined.
+	If the default App Engine version is not 1.9.0, you may need to 
+	tweak with the project settings to get the newer jars to be added.
+
+  Google / Web Toolkit:
+  
+    Be sure there is a WebToolkit SDK defined 2.5.1 or higher.
+	The default GWT version should match that in the maven 
+	pom.xml (currently 2.5.1).  The GWT library is installed as 
+	part of the plugin and can be found in:
+	...\eclipse\plugins\com.google.gwt.eclipse.sdkbundle_2.5.1...\gwt-2.5.1
+
+File / Import:
+
+    Choose the directory of the clone'd repository as the directory to search
+	(this is one level below the workspace directory).
+	
+	Choose ONLY the eclipse-aggregate-gae and odk-gae-settings projects.
+
+	This should refresh and build with one error (a missing odk-settings-latest.jar).
+	
+(4)	Edit odk-gae-settings / common / security.properties
+
+In this file:
+
+Set the security.server.superUser to your gmail account.
+
+Additionally, set the security.server.hostname=
+(blank) to a dynamic DNS name or IP for your development box.
+
+Save.
+
+(5) In the odk-gae-settings project, select 
+the 'build.xml' (Ant Buildfile), right-click, and 
+choose Run As / Ant Build.  This will rebuild the configuration 
+jar and copy it into the eclipse project.
+
+(6) Refresh the eclipse-aggregate-gae project (to pick up the updated jar file).
+
+This should now build without errors.  
+
+On Eclipse 3.7, these additional steps may also be required:
+
+Select eclipse-aggregate-gae
+right-click Properties
+
+under /Builders
+
+de-select Enhancer (based on the bug: http://code.google.com/p/googleappengine/issues/detail?id=1970 )
+
+under /Google/App Engine
+
+toggle the App Engine SDK between the default and specific settings (to make a 
+rebuild as per instructions http://code.google.com/p/opendatakit/wiki/EclipseDebugging )
+
+(7) Select eclipse-aggregate-gae project.
+
+Click on the red toolbox (GWT compile) to compile the GWT Java code into javascript.
+For the Project, specify 'eclipse-gae-project'. This should auto-populate the 
+'Entry Point Modules' section and highlight 'AggregateUI'.  If not, click Add and 
+choose 'AggregateUI' as the entry point module to compile. If you ever need to browse
+to this, it is located under:
+
+  Package: org.opendatakit.aggregate
+  Filename: AggregateUI.gwt.xml
+
+Click on 'Advanced' to open more options.
+
+In the 'VM Arguments' section, add:
+
+-Xmx1536m
+
+Click 'Compile'
+
+This should now compile.
+
+==================================
+Running or Debugging under Eclipse
+==================================
+
+Select eclipse-aggregate-gae project.
+
+The first time you run or debug, you need to increase the JVM sizes
+
+Run As 'Run Configurations...'
+Debug As 'Debug Configurations...'
+
+Choose 'Web Application'
+
+Open this up, and select 'index.html'
+
+On the '(X)= Arguments' tab, replace the '-Xmx512m' at the front of the 'VM Arguments' section with:
+
+-Xmx2048m -XX:MaxPermSize=1536m 
+
+Click 'Run' or 'Debug'
+
+This should start up the server.
+
+GWT UI debugging needs to be done on a Chrome browser.
+
+==================================
+Debugging GWT UI in Chrome Browser
+==================================
+
+Open a Chrome browser
+
+Go to Tools / Extensions
+
+Choose to 'Get more extensions'
+
+Search for 'GWT Developer Plugin' and install it.
+
+Ensure that it is enabled.
+
+Now paste in the URL from Eclipse's 'Development Mode' tab into 
+your browser. This will typically be:
+
+http://127.0.0.1:8888/index.html?gwt-server=127.0.0.1:9997
+
+This will redirect to the login screen. After logging in
+you will then be redirected to the Aggregate.html page and the
+main UI.
+
+At this point, the query string, ?gwt-server=127.0.0.1:9997
+may drop off. This will disconnect the UI rendering from the 
+client Java code, causing the rendering to fall back to the
+last manually compiled GWT code. Be on the alert for this.
+If it happens, just add the query string back into the URL 
+before the hash (#) mark.
+
+The URL should show have a red GWT toolbox to its right. If this
+ever changes to gray, you need to click on the toolbox and allow
+the new hostname and port to access GWT. If you specify an IP address
+or hostname in the security.properties file, you generally need to 
+do this (you would need to do that in order for a device to reach
+your server).
+
+=====================
+MySQL Eclipse Setup
+---------------------
+
+First, get the eclipse-aggregate-gae project working.
+
+You will then copy the war directory of that project over to the 
+eclipse-aggregate-mysql project, and tweak it. 
+
+See the SETUP.txt instructions in the eclipse-aggregate-mysql
+directory for further information.
+
+The class files seem to get stuck and not Publish when running
+under Tomcat 6.0 and MySQL. The work-around for this is to 
+Stop the server and Clean... it, then Start it. This seems to 
+make everything current.
+
+==========================================
+Troubleshooting Debugging/Running 
+------------------------------------------
+
+(1) Javascript refresh loop 
+
+If the database schema has changed, the browser may flash
+and be stuck in a javascript refresh loop.  To remedy,
+delete your local datastore (instructions below)
+
+(2) Odd behaviors under Eclipse
+
+The Eclipse GWT plugin does not normally keep the compiled
+client-side javascript up to date with the debug-enabled
+GWT Java client code.  This can cause a number of inconsistencies
+when the ?gwt.codesvr=127.0.0.1:9997 query string is dropped 
+off the URL during redirects when logging in, etc.
+
+First, verify that if you are running under debug, you have
+the ?gwt.codesvr=127.0.0.1:9997 query string on your URLs.
+
+Second, periodically, when stopped, click on the red toolbox
+to compile the javascript.
+
+Third, periodically clear your browser cache to force a complete
+re-loading of the clientside javascript.
+
+Fourth, if you have moved or changed client interfaces, you 
+may need to manually browse to the war diretory and delete 
+the contents of the war/aggregateui and war/WEB-INF/deploy
+directories.  
+
+(3) Odd errors about locking scopes.
+
+If you are debugging code within a transaction
+region (these are presently isolated to TaskLockImpl.java),
+the datastore can get confused about the transaction scopes
+that are active.  You may need to close eclipse, re-open, 
+and delete the datastore to clear this problem.
+
+-----------------------
+Clearing your Datastore
+-----------------------
+
+To delete the local datastore:
+
+(1) In Eclipse, browse to war/WEB-INF/appengine-generated
+(2) Hit Refresh
+(3) delete "local_db.bin"
+
+==========================================
+Full Maven Development Environment Configuration
+------------------------------------------
+
+(1) Install Maven 3.  This will generally set up a maven repository under
+    the user's home directory:  ${HOME}/.m2/repository
+
+(2) Install Eclipse 3.7.2 or higher.  This workspace WILL NOT work with 
+    Eclipse 3.5.2 and earlier.
+
+(3) Install Google Eclipse Plugin with App Engine SDK and Google Web Toolkit SDK.
+
+(4) Optionally Install Tomcat 6.0.  
+    This is required unless you do not import or always keep closed
+    the MySQL and Postgres projects and don't use maven.
+
+(5) Optionally: Install Postgres
+
+For Postgres, run these commands:
+
+----postgres-script-start-----
+create database "odk_test";
+create schema "odk_test";
+create user "odk_test" with unencrypted password 'odk_test';
+grant all privileges on database "odk_test" to "odk_test";
+alter database "odk_test" owner to "odk_test";
+----postgres-script-end-------
+
+From the Postgres SQL shell (psql) commandline client,
+using the root account and password, if the above commands
+are in the file postgres.sql, you can type:
+
+\cd C:/your_path_no_spaces_forward_slashes_only
+\i postgres.sql
+\q
+
+(6) Optionally: Install MySQL
+
+(6a)
+For MySQL, run this script:
+
+UPDATE mysql.user SET Password=PASSWORD('odk_test') WHERE User='root';
+FLUSH PRIVILEGES;
+CREATE USER 'odk_test'@'localhost' IDENTIFIED BY 'odk_test';
+CREATE DATABASE odk_test;
+GRANT ALL PRIVILEGES ON odk_test.* TO 'odk_test'@'localhost' WITH GRANT OPTION;
+
+(6b)
+For MySQL, download and copy the MySQL Connector J jar into the Tomcat /lib
+directory (mysql-connector-java-5.1.17.jar to apache-tomcat-6.0.26/lib).
+You must stop tomcat, if it is running, in order for the library to be detected.
+
+For Maven (3) is optional; (4), (5) and (6) are required in order
+to perform a full build.
+
+----------
+
+(7) Register libraries in Maven: (this is also required for Eclipse builds)
+
+The libraries to be registered in maven are in the src/main/libs directory.
+See the readme there for the maven commands to upload those files into your
+local repository.  In some cases, these are cutting edge Google libraries that
+may no longer need to be manually installed (once they get published to maven).
+
+(8a) Download and install Firefox ESR 24. This is a slowly-upgrading version
+of Firefox, since the upgrade cycle of Firefox is too rapid for Selenium
+(our UI testing framework) to keep up.
+
+(8) Download the Java Selenium Client Driver ( http://seleniumhq.org/download/ )
+Since we use Firefox ESR 24, we need to use 2.37, available here: 
+https://code.google.com/p/selenium/downloads/detail?name=selenium-java-2.37.0.zip
+The Maven pom.xml expects version 2.37.0.  Explode the zip and make note of 
+the directory.
+ 
+(9) Edit Maven's settings.xml file (this is in the .m2 directory).
+
+A minimal file is:
+
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                      http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <servers>
+	<server>
+		<id>local.gae</id>
+		<username>mitchellsundt@gmail.com</username>
+		<password></password>
+	</server>
+  </servers>
+  <profiles>
+  	<profile>
+  	  <id>gae</id>
+  	  <activation><activeByDefault>true</activeByDefault></activation>
+  	  <properties>
+		<localRepository>${user.home}/.m2/repository</localRepository>
+		<temp.home>C:\\Users\\Administrator\\AppData\\Local\\Temp</temp.home>
+	    <gae.home>\C:\\Users\\Administrator\\appengine-java-sdk-1.9.0</gae.home>
+		<bitrock.home>C:\Program Files (x86)\BitRock InstallBuilder Professional 8.6.0</bitrock.home>
+	    <keystore.propertyfile>\C:\\Users\\Administrator\\keystore\\jarSignerDetails.txt</keystore.propertyfile>
+		<headless.operation>no</headless.operation>
+		<mysql.client.executable>C:\\Program Files\\MySQL\\MySQL Server 5.5\\bin\\mysql.exe</mysql.client.executable>
+		<mysql.root.password>MYSQLROOTPASSWORDHERE</mysql.root.password>
+		<postgres.client.executable>C:\\Program Files\\PostgreSQL\\9.1\\bin\\psql.exe</postgres.client.executable>
+		<postgres.root.password>POSTGRESQLROOTPASSWORDHERE</postgres.root.password>
+		<selenium.home>C:\\Users\\Administrator\\Documents\\selenium\\selenium-2.37.0</selenium.home>
+		<selenium.libs>C:\\Users\\Administrator\\Documents\\selenium\\selenium-2.37.0\\libs</selenium.libs>
+		<test.server.hostname>YOUR.FULLY.QUALIFIED.HOSTNAME.AND.ORG</test.server.hostname>
+		<test.server.port>7070</test.server.port>
+		<test.server.secure.port>7443</test.server.secure.port>
+		<test.server.gae.monitor.port>7075</test.server.gae.monitor.port>
+		<firefox.executable></firefox.executable>
+		<catalina.zip>file:///C:\\Users\\Administrator\\.m2\\apache-tomcat-6.0.35-windows-x64.zip</catalina.zip>
+	  </properties>
+  	</profile>
+  </profiles>
+  <activeProfiles><activeProfile>gae</activeProfile></activeProfiles>
+</settings>
+
+Be sure to update the paths and passwords to match those of your environment.
+
+The installer is not hooked into the parent Maven project, but identifies that project as its
+parent.  So you can build the top-level project to build and run unit tests, integration tests, 
+etc. and do not need bitrock installed.
+
+The aggregate-mysql war file is used as the starting point for the installer build process.
+
+=========================
+Maven Command Line Builds
+=========================
+
+(12) Maven command-line builds are done as follows:
+
+mvn clean 
+
+This cleans the workspace, removing all temporary files.
+If this errors out, verify that there are no orphaned java
+executables running. If the GAE tests crash, they can leave
+a java database background process running.
+
+mvn install
+
+This will build and install the projects, running the unit tests
+against the 3 datastores (Google BigTable, MySQL, Postgresql),
+and building the wars for the 3 platforms.
+
+(13) If you have bitrock installed and licensed, you can 
+build the bitrock installer.  First, 
+ copy aggregate-mysql\target\aggregate-mysql-1.0.war bitrock-installer
+ cd bitrock-installer
+ mvn clean
+ mvn install
+Open bitrock and open the buildWar.xml project file in this directory.
+On the packaging page, build for windows, linux, linux-64 and OSX.
+
+On Windows, the generated installers are placed under:
+
+C:\Users\Administrator\Documents\InstallBuilder\output
+
