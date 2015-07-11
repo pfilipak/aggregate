@@ -379,12 +379,12 @@ A minimal file is:
   	  <activation><activeByDefault>true</activeByDefault></activation>
   	  <properties>
 		<localRepository>${user.home}/.m2/repository</localRepository>
-		<temp.home>C:\\Users\\Administrator\\AppData\\Local\\Temp</temp.home>
+		<temp.home>/tmp</temp.home>
 		<bitrock.home>C:\Program Files (x86)\BitRock InstallBuilder Professional 9.5.3</bitrock.home>
 	    <keystore.propertyfile>\C:\\Users\\Administrator\\keystore\\jarSignerDetails.txt</keystore.propertyfile>
 		<headless.operation>no</headless.operation>
-		<mysql.client.executable>C:\\Program Files\\MySQL\\MySQL Server 5.5\\bin\\mysql.exe</mysql.client.executable>
-		<mysql.root.password>MYSQLROOTPASSWORDHERE</mysql.root.password>
+		<mysql.client.executable>/usr/local/mysql/bin/mysql</mysql.client.executable>
+		<mysql.root.password></mysql.root.password>
 		<postgres.client.executable>C:\\Program Files\\PostgreSQL\\9.1\\bin\\psql.exe</postgres.client.executable>
 		<postgres.root.password>POSTGRESQLROOTPASSWORDHERE</postgres.root.password>
 		<test.server.hostname>YOUR.FULLY.QUALIFIED.HOSTNAME.AND.ORG</test.server.hostname>
